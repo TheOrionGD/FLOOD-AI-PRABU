@@ -82,12 +82,20 @@ async function _loadResidentLocationsList() {
   const prefs = state.user?.preferences || {};
   let savedLocations = prefs.savedLocations || [];
 
-  // Default demonstration locations if none saved yet
   if (savedLocations.length === 0) {
-    savedLocations = [
-      { name: "Primary Residence", district: "Chennai", latitude: 13.0827, longitude: 80.2707 },
-      { name: "Family Home", district: "Hosur", latitude: 12.7409, longitude: 77.8253 }
-    ];
+    wrap.innerHTML = `
+      <div class="glass-card elevated" style="padding:48px; text-align:center;">
+        <div style="font-size:36px; margin-bottom:12px;">📍</div>
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">No Saved Locations Bookmarked</h3>
+        <p style="font-size:13.5px; color:var(--text-muted); max-width:480px; margin:0 auto 20px;">
+          Bookmark your primary residence, workplace, or family home to monitor localized flood danger.
+        </p>
+        <button class="glass-btn btn-primary" onclick="toggleAddLocationForm()" style="gap:6px; margin:0 auto;">
+          <span>➕</span> Add Your First Location
+        </button>
+      </div>
+    `;
+    return;
   }
 
   wrap.innerHTML = `

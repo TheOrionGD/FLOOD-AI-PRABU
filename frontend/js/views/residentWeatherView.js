@@ -34,16 +34,42 @@ async function renderResidentWeather(root) {
     </div>
   `;
 
-  let lat = 13.08;
-  let lon = 80.27;
-  if (state.userLocation && state.userLocation.latitude) {
-    lat = state.userLocation.latitude;
-    lon = state.userLocation.longitude;
+  // Check location from GeoLocationService or state
+  const geo = typeof GeoLocationService !== 'undefined' ? GeoLocationService.getStatus() : null;
+  const userLat = geo?.coords?.lat ?? state.userLocation?.lat ?? state.userLocation?.latitude;
+  const userLon = geo?.coords?.lon ?? state.userLocation?.lon ?? state.userLocation?.longitude;
+  const isGps = geo?.isGps;
+  const placeLabel = geo?.coords?.cityName || geo?.coords?.district || state.userLocation?.cityName || state.userLocation?.district || (userLat ? `${userLat.toFixed(2)}°, ${userLon.toFixed(2)}°` : null);
+
+  const container = document.getElementById('residentWeatherContent');
+  if (!container) return;
+
+  if (userLat === undefined || userLon === undefined) {
+    container.innerHTML = `
+      <div class="glass-card elevated" style="padding:48px; text-align:center;">
+        <div style="font-size:36px; margin-bottom:12px;">🛰️</div>
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:8px;">Location Permission Required</h3>
+        <p style="font-size:13.5px; color:var(--text-muted); max-width:480px; margin:0 auto 20px;">
+          Enable browser device geolocation or select your sector manually to stream live hyper-local weather and precipitation telemetry.
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+          <button class="glass-btn btn-primary" onclick="GeoLocationService.requestDeviceLocation().then(() => renderResidentWeather(document.getElementById('pageRoot')))" style="gap:6px;">
+            <span>📍</span> Enable GPS Location
+          </button>
+          <button class="glass-btn btn-ghost" onclick="if(typeof openLocPickerModal==='function')openLocPickerModal()" style="gap:6px;">
+            <span>🏙️</span> Choose Sector Manually
+          </button>
+        </div>
+      </div>
+    `;
+    return;
   }
+
+  const lat = userLat;
+  const lon = userLon;
 
   try {
     const data = await api(`/weather?lat=${lat}&lon=${lon}`);
-    const container = document.getElementById('residentWeatherContent');
     if (!container) return;
 
     const current = data.current || {};
@@ -53,7 +79,29 @@ async function renderResidentWeather(root) {
     const wind = current.windSpeed !== undefined ? current.windSpeed : ((data.wind?.speed || 5) * 3.6);
     const pressure = current.pressure !== undefined ? current.pressure : (data.main?.pressure || 1012);
 
+    const provBadge = isGps ? '🛰️ LIVE GPS SATELLITE FIX' : '📍 MANUAL SECTOR SELECTION';
+    const provColor = isGps ? 'var(--ocean)' : 'var(--accent-primary)';
+
     container.innerHTML = `
+      <!-- Location Telemetry Header -->
+      <div class="glass-card" style="padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:22px;">📍</span>
+          <div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary);">${escapeHtml(placeLabel || 'Monitored Sector')}</div>
+            <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);">Coordinates: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="glass-badge" style="background:rgba(255,255,255,0.06); color:${provColor}; font-family:var(--font-mono); font-size:11px;">
+            ${provBadge}
+          </span>
+          <button class="glass-btn btn-ghost" onclick="if(typeof openLocPickerModal==='function')openLocPickerModal()" style="font-size:11.5px; padding:4px 10px;">
+            Change Location ✏️
+          </button>
+        </div>
+      </div>
+
       <!-- Weather Telemetry Grid -->
       <div class="grid-cards" style="grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:28px;">
         <div class="glass-stat-card border-lightning">

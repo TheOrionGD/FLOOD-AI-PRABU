@@ -11,6 +11,20 @@ const AlertDispatch = require("../models/AlertDispatch");
 const { optionalToken, authenticateToken } = require("../middleware/authMiddleware");
 const fcmService = require("../services/fcmService");
 
+// GET /api/notifications/stream -> Real-time Server-Sent Events stream for push & emergency notifications
+router.get("/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+  fcmService.addSseClient(res);
+
+  req.on("close", () => {
+    fcmService.removeSseClient(res);
+  });
+});
+
 // POST /api/notifications/register-token
 router.post("/register-token", optionalToken, async (req, res) => {
   try {
@@ -18,6 +32,8 @@ router.post("/register-token", optionalToken, async (req, res) => {
     if (!token) {
       return res.status(400).json({ error: "FCM registration token is required" });
     }
+
+    fcmService.registerGuestToken(token);
 
     if (req.user) {
       await req.user.addFcmToken(token, userAgent);
@@ -28,7 +44,7 @@ router.post("/register-token", optionalToken, async (req, res) => {
       });
     }
 
-    // If anonymous, associate with a public guest pool or confirm token validation
+    // If anonymous, associate with guest pool
     res.status(200).json({
       message: "Browser notification token validated and registered (guest session)",
       registered: true,

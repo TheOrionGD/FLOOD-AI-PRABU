@@ -89,11 +89,16 @@ echo [4/5] Checking database status...
 if exist "atlas-credentials.env" (
     echo    [OK] MongoDB Atlas cloud cluster configuration detected [atlas-credentials.env].
 ) else (
-    netstat -aon | findstr ":27017" | findstr "LISTENING" >nul 2>nul
+    findstr /i "mongodb+srv" .env >nul 2>nul
     if !ERRORLEVEL! equ 0 (
-        echo    [OK] Local MongoDB detected running on port 27017.
+        echo    [OK] MongoDB Atlas cloud cluster URI detected in .env.
     ) else (
-        echo    [INFO] Standalone resilient mode active.
+        netstat -aon | findstr ":27017" | findstr "LISTENING" >nul 2>nul
+        if !ERRORLEVEL! equ 0 (
+            echo    [OK] Local MongoDB detected running on port 27017.
+        ) else (
+            echo    [INFO] Standalone resilient mode active.
+        )
     )
 )
 echo.

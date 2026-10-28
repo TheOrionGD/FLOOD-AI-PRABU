@@ -58,6 +58,21 @@ const GeoLocationService = {
         const age = Date.now() - (saved._savedAt || 0);
         // Valid for up to 2 hours
         if (age < 2 * 60 * 60 * 1000 && saved.lat && saved.lon) {
+          const distList = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length) ? DISTRICTS : (typeof DEFAULT_MONITORED_DISTRICTS !== 'undefined' ? DEFAULT_MONITORED_DISTRICTS : []);
+          let nearest = saved.nearestDistrict || null;
+          if (!nearest && distList.length && saved.lat && saved.lon) {
+            let minDist = Infinity;
+            distList.forEach(d => {
+              if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+                const dist = Math.hypot(saved.lat - d.latitude, saved.lon - d.longitude);
+                if (dist < minDist) {
+                  minDist = dist;
+                  nearest = d.district;
+                }
+              }
+            });
+          }
+
           this.coords = {
             lat: saved.lat,
             lon: saved.lon,
@@ -68,11 +83,17 @@ const GeoLocationService = {
             cityName: saved.cityName || null,
             country: saved.country || null,
             stateName: saved.stateName || null,
+            nearestDistrict: nearest,
             isCached: true
           };
           this.status = this.STATE.LOCATED;
           if (typeof state !== 'undefined') {
-            state.userLocation = { lat: saved.lat, lon: saved.lon };
+            state.userLocation = {
+              lat: saved.lat,
+              lon: saved.lon,
+              cityName: saved.cityName,
+              district: saved.district || nearest
+            };
             state.locationAccuracyKm = (this.coords.accuracyMeters / 1000).toFixed(1);
           }
           return true;
@@ -100,6 +121,10 @@ const GeoLocationService = {
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
+  },
+
+  addListener(listener) {
+    return this.subscribe(listener);
   },
 
   notify() {
@@ -227,12 +252,36 @@ const GeoLocationService = {
             }
           } catch (e) {}
 
+          // Auto-bind nearest monitored disaster district from DISTRICTS if not already linked
+          if (typeof DISTRICTS !== 'undefined' && DISTRICTS.length) {
+            let matched = DISTRICTS.find(d => 
+              (this.coords.district && d.district.toLowerCase() === this.coords.district.toLowerCase()) ||
+              (this.coords.cityName && d.district.toLowerCase() === this.coords.cityName.toLowerCase())
+            );
+            if (!matched) {
+              let minDist = Infinity;
+              DISTRICTS.forEach(d => {
+                if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+                  const dist = Math.hypot(lat - d.latitude, lon - d.longitude);
+                  if (dist < minDist) {
+                    minDist = dist;
+                    matched = d;
+                  }
+                }
+              });
+            }
+            if (matched) {
+              this.coords.nearestDistrict = matched.district;
+              if (!this.coords.district) this.coords.district = matched.district;
+            }
+          }
+
           if (typeof state !== 'undefined') {
             state.userLocation = {
               lat,
               lon,
               cityName: this.coords.cityName,
-              district: this.coords.district
+              district: this.coords.district || this.coords.nearestDistrict
             };
             state.locationAccuracyKm = (accuracyMeters / 1000).toFixed(1);
           }
@@ -284,8 +333,8 @@ const GeoLocationService = {
   },
 
   selectManualDistrict(districtName) {
-    if (typeof DISTRICTS === 'undefined' || !DISTRICTS.length) return;
-    const d = DISTRICTS.find(item => item.district.toLowerCase() === String(districtName).toLowerCase());
+    const distList = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length) ? DISTRICTS : (typeof DEFAULT_MONITORED_DISTRICTS !== 'undefined' ? DEFAULT_MONITORED_DISTRICTS : []);
+    const d = distList.find(item => item.district.toLowerCase() === String(districtName).toLowerCase());
     if (!d) return;
 
     this.status = this.STATE.LOCATED;
@@ -299,11 +348,17 @@ const GeoLocationService = {
       cityName: d.district,
       stateName: d.state,
       country: 'IN',
+      nearestDistrict: d.district,
       distanceKm: 0
     };
 
     if (typeof state !== 'undefined') {
-      state.userLocation = { lat: d.latitude, lon: d.longitude };
+      state.userLocation = {
+        lat: d.latitude,
+        lon: d.longitude,
+        cityName: d.district,
+        district: d.district
+      };
       state.locationAccuracyKm = '5.0';
     }
     this.error = null;
@@ -331,6 +386,23 @@ const GeoLocationService = {
       return false;
     }
 
+    const distList = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length) ? DISTRICTS : (typeof DEFAULT_MONITORED_DISTRICTS !== 'undefined' ? DEFAULT_MONITORED_DISTRICTS : []);
+    let nearest = distList.find(d => 
+      d.district.toLowerCase() === String(locationData.name).toLowerCase()
+    );
+    if (!nearest && distList.length) {
+      let minDist = Infinity;
+      distList.forEach(d => {
+        if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+          const dist = Math.hypot(locationData.lat - d.latitude, locationData.lon - d.longitude);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = d;
+          }
+        }
+      });
+    }
+
     this.status = this.STATE.LOCATED;
     this.coords = {
       lat: locationData.lat,
@@ -342,6 +414,7 @@ const GeoLocationService = {
       cityName: locationData.name,
       stateName: locationData.state || null,
       country: locationData.country || null,
+      nearestDistrict: nearest ? nearest.district : null,
       distanceKm: 0
     };
 

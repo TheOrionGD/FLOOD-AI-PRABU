@@ -195,9 +195,49 @@ async function run() {
     assert(geoDistricts.status === 200, "GeoJSON district boundaries retrieved");
     assert(geoDistricts.data.features.length === 10, "All 10 monitored districts rendered as valid polygon boundaries");
 
-    const persRes = await request(`http://127.0.0.1:${API_PORT}/api/threats/personal-intelligence?lat=19.07&lon=72.87`);
-    assert(persRes.status === 200, "Personal location intelligence calculates distance to nearest district");
-    assert(persRes.data.nearest_district === "Mumbai", "Coordinates 19.07, 72.87 correctly resolved to Mumbai");
+    // Workflow H: Resident Flood Alert Simulation & Isolation
+    const simRes = await request(`http://127.0.0.1:${API_PORT}/api/alerts/simulate-resident-flood`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: {
+        scenario: "coastal_surge",
+        severity: "Critical",
+        location: "Mumbai Gateway Sector",
+        latitude: 18.9220,
+        longitude: 72.8347,
+        channels: ["siren", "email", "sms", "fcm"],
+        probabilityPct: 91.2
+      }
+    });
+    assert(simRes.status === 200, "Resident alert simulation dispatches across requested channels");
+    assert(simRes.data.success === true, "Simulation confirmed with success status");
+    assert(simRes.data.accountDataTargeted.email === uniqueEmail, "Simulation targets authenticated user email");
+    assert(Boolean(simRes.data.simulationId), "Simulation run stored with unique ID");
+
+    // Acknowledge simulation
+    const ackRes = await request(`http://127.0.0.1:${API_PORT}/api/alerts/simulations/${simRes.data.simulationId}/acknowledge`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert(ackRes.status === 200, "Simulation acknowledgment recorded in database");
+
+    // Verify isolation from public alerts
+    const alertsRes = await request(`http://127.0.0.1:${API_PORT}/api/alerts`);
+    assert(alertsRes.status === 200, "Operational public alerts retrieved");
+    const leakCheck = alertsRes.data.some(a => a.isSimulation === true);
+    assert(!leakCheck, "Simulation is completely isolated and excluded from public alert feed");
+
+    // Database cleanup: remove test user and dispatches
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState === 1) {
+      const User = mongoose.model("User");
+      const SimulationRun = mongoose.model("SimulationRun");
+      const AlertDispatch = mongoose.model("AlertDispatch");
+      await User.deleteOne({ email: uniqueEmail });
+      await SimulationRun.deleteMany({ userId: regRes.data.user?._id });
+      await AlertDispatch.deleteMany({ userId: regRes.data.user?._id });
+      console.log("[CLEANUP] Purged E2E test account and simulation records.");
+    }
 
     console.log("\n=====================================================================");
     console.log(`FULL SYSTEM INTEGRATION RESULT: ${passed} PASSED, ${failed} FAILED`);

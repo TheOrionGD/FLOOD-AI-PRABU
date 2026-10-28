@@ -190,6 +190,68 @@ async function runTests() {
     assert(Boolean(gLoginSuccess.data.token), "Google login returns valid JWT token");
     assert(gLoginSuccess.data.user.role === "user", "Authenticated Google user retains 'user' role");
 
+    // 14. Resident Alert Simulation Endpoints & Isolation
+    // 14a. Unauthenticated simulation request should be rejected (401)
+    const unauthSim = await request("/api/alerts/simulate-resident-flood", {
+      method: "POST",
+      body: { scenario: "coastal_surge", severity: "Warning" }
+    });
+    assert(unauthSim.status === 401, "POST /api/alerts/simulate-resident-flood rejects unauthenticated requests with 401");
+
+    // 14b. Authenticated simulation dispatch
+    const authSim = await request("/api/alerts/simulate-resident-flood", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}` },
+      body: {
+        scenario: "heavy_rainfall",
+        severity: "Warning",
+        location: "Tambaram Test Sector",
+        latitude: 12.9249,
+        longitude: 80.1000,
+        channels: ["siren", "email", "sms", "fcm"],
+        probabilityPct: 84.5
+      }
+    });
+    assert(authSim.status === 200, "POST /api/alerts/simulate-resident-flood succeeds for authenticated resident");
+    assert(authSim.data.success === true, "Simulation response returns success: true");
+    assert(Boolean(authSim.data.simulationId), "Simulation run ID returned by backend");
+    assert(authSim.data.accountDataTargeted.email === testEmail, "Recipient email strictly derived from DB user account");
+    assert(authSim.data.channels.siren.status === "armed_in_browser", "Siren channel armed");
+    assert(Boolean(authSim.data.channels.email.status), "Email channel returned verified status");
+
+    const simId = authSim.data.simulationId;
+
+    // 14c. Acknowledge Simulation Alert
+    const ackRes = await request(`/api/alerts/simulations/${simId}/acknowledge`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    assert(ackRes.status === 200, "POST /api/alerts/simulations/:id/acknowledge accepts resident acknowledgment");
+    assert(ackRes.data.acknowledged === true, "Simulation marked as acknowledged");
+
+    // 14d. Fetch Simulation History
+    const histRes = await request("/api/alerts/simulations/history", {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    assert(histRes.status === 200, "GET /api/alerts/simulations/history retrieves audit records");
+    assert(Array.isArray(histRes.data) && histRes.data.length >= 1, "Simulation history includes the dispatched test run");
+
+    // 14e. Verify Public Alerts do NOT contain the simulation (Isolation Guarantee)
+    const pubAlerts = await request("/api/alerts");
+    assert(pubAlerts.status === 200, "GET /api/alerts returns operational alerts");
+    const leakedSim = pubAlerts.data.some(a => a.isSimulation === true || a.message?.includes("SIMULATION TEST"));
+    assert(!leakedSim, "Public emergency alerts strictly exclude simulations (isSimulation: true isolation)");
+
+    // 15. Automated Database Cleanup: Purge test users and their simulation runs
+    const User = require("./models/User");
+    const SimulationRun = require("./models/SimulationRun");
+    const AlertDispatch = require("./models/AlertDispatch");
+
+    await User.deleteMany({ email: { $in: [testEmail, unregGoogleEmail] } });
+    await SimulationRun.deleteMany({ userId: reg.data.user?._id || profile.data.user?._id });
+    await AlertDispatch.deleteMany({ userId: reg.data.user?._id || profile.data.user?._id });
+    console.log("[CLEANUP] Successfully purged temporary test users and simulation runs from database.");
+
     console.log("==================================================");
     console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
     console.log("==================================================");

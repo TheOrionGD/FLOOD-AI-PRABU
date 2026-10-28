@@ -49,9 +49,10 @@ router.post("/register", async (req, res) => {
       { expiresIn: "8h" }
     );
 
-    // Send welcome / verification email asynchronously
+    // Send welcome / verification email asynchronously with dynamic OTP
+    const welcomeOtp = Math.floor(100000 + Math.random() * 900000).toString();
     brevoEmailService
-      .sendVerificationCode({ to: user.email, code: "748092" })
+      .sendVerificationCode({ to: user.email, code: welcomeOtp })
       .catch((e) => console.warn("[Auth:Email:Warn]", e.message));
 
     res.status(201).json({
@@ -241,8 +242,9 @@ router.post("/google/register", async (req, res) => {
       { expiresIn: "8h" }
     );
 
+    const googleWelcomeOtp = Math.floor(100000 + Math.random() * 900000).toString();
     brevoEmailService
-      .sendVerificationCode({ to: user.email, code: "748092" })
+      .sendVerificationCode({ to: user.email, code: googleWelcomeOtp })
       .catch((e) => console.warn("[Auth:Email:Warn]", e.message));
 
     res.status(201).json({

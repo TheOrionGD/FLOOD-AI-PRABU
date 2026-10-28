@@ -114,18 +114,22 @@ Open your browser to: **`http://localhost:3000`**
 Execute tests from the repository root:
 
 ```bash
+# Run all core verification suites via npm
+npm test
+
+# Or execute specific suites individually:
 # Verify secret management & git hygiene
-node scripts/validation/validate_secrets.js
+npm run audit:secrets   # or: node scripts/validation/validate_secrets.js
 
 # Verify atmospheric climate engine & resolver
-node test_climate_engine.js
+node tests/test_climate_engine.js
 
 # Verify 12 background assets & crossfade service
-node test_climate_backgrounds.js
+node tests/test_climate_backgrounds.js
 
 # Verify light/dark theme particle physics
-node test_light_theme_particles.js
+node tests/test_light_theme_particles.js
 
 # Verify responsive role navigation & Command Palette
-node test_responsive_role_nav.js
+node tests/test_responsive_role_nav.js
 ```

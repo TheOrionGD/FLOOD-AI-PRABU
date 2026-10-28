@@ -157,23 +157,27 @@ python -m http.server 3000 # Visit http://localhost:3000
 
 ## 🧪 Automated Verification Suites
 
-Run the automated verification test suites from the project root:
+Run the automated verification test suites from the project root using `npm` or `node`:
 
 ```bash
-# 1. Run DevSecOps Secret & Git Index Audit
-node scripts/validation/validate_secrets.js
+# Run all core verification suites via npm
+npm test
 
-# 2. Run Atmospheric Climate Engine Tests
-node test_climate_engine.js
+# Or run suites individually:
+# 1. DevSecOps Secret & Git Index Audit
+npm run audit:secrets   # or: node scripts/validation/validate_secrets.js
 
-# 3. Run Climate Background Assets & Crossfade Tests
-node test_climate_backgrounds.js
+# 2. Atmospheric Climate Engine Tests
+node tests/test_climate_engine.js
 
-# 4. Run Light Theme Particle Physics Verification
-node test_light_theme_particles.js
+# 3. Climate Background Assets & Crossfade Tests
+node tests/test_climate_backgrounds.js
 
-# 5. Run Responsive Role Navigation & RBAC Tests
-node test_responsive_role_nav.js
+# 4. Light Theme Particle Physics Verification
+node tests/test_light_theme_particles.js
+
+# 5. Responsive Role Navigation & RBAC Tests
+node tests/test_responsive_role_nav.js
 ```
 
 ---

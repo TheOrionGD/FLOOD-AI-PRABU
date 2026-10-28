@@ -172,12 +172,14 @@ const connectDatabase = async () => {
       connectTimeoutMS: 15000,
     });
     console.log(`[MongoDB] Connected successfully to: ${mongoose.connection.host || "Atlas"}`);
-    // Auto-seed ground-truth dataset if collection is empty
-    try {
-      const seedDatabase = require("./scripts/seed_database");
-      await seedDatabase();
-    } catch (sErr) {
-      console.warn("[MongoDB:Seed:Note]", sErr.message);
+    // Ground-truth dataset seeding guarded by explicit opt-in environment flag
+    if (process.env.ENABLE_DATASET_SEED === "true") {
+      try {
+        const seedDatabase = require("./scripts/seed_database");
+        await seedDatabase();
+      } catch (sErr) {
+        console.warn("[MongoDB:Seed:Note]", sErr.message);
+      }
     }
   } catch (err) {
     console.warn(`[MongoDB:Warning] Atlas/Local connection failed (${err.message}). Running in resilient standalone mode.`);

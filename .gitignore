@@ -10,6 +10,7 @@
 *.env
 atlas-credentials.env
 FIREBASE.JSON
+frontend/config/firebase-snippet.js
 firebase-adminsdk*.json
 service-account*.json
 *.pem
@@ -83,3 +84,5 @@ logs/
 
 # Monolithic / Unused Backup Archive
 originalflood-ai-project/
+backups/
+backend/backups/

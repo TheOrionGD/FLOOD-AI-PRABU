@@ -4,13 +4,15 @@
 
 let firebaseApp = null;
 let fcmMessaging = null;
+let notificationEventSource = null;
 
 /**
  * Initializes Firebase Web App & Messaging SDK
  */
-function initFirebase() {
+async function initFirebase() {
   if (typeof firebase === 'undefined') {
     console.warn('[FCM] Firebase SDK not loaded in page');
+    connectNotificationStream();
     return;
   }
   try {
@@ -20,44 +22,100 @@ function initFirebase() {
       firebaseApp = firebase.app();
     }
 
-    if (firebase.messaging && firebase.messaging.isSupported()) {
-      fcmMessaging = firebase.messaging();
+    if (firebase.messaging) {
+      let isSupported = false;
+      try {
+        isSupported = (typeof firebase.messaging.isSupported === 'function')
+          ? await firebase.messaging.isSupported()
+          : true;
+      } catch (_) {
+        isSupported = false;
+      }
 
-      // Foreground message listener
-      fcmMessaging.onMessage((payload) => {
-        console.log('[FCM] Foreground notification received:', payload);
-        const title = payload.notification?.title || payload.data?.title || 'FloodAI Emergency Alert';
-        const body = payload.notification?.body || payload.data?.body || 'Elevated flood risk detected in your monitored zone.';
-        const severity = payload.data?.severity || 'High';
+      if (isSupported) {
+        fcmMessaging = firebase.messaging();
 
-        // Play alert sound
-        if (typeof AlertSound !== 'undefined') {
-          AlertSound.play(severity === 'Very High' ? 'red' : (severity === 'High' ? 'orange' : 'yellow'));
-        }
-        if (typeof vibrate === 'function') {
-          vibrate([300, 150, 300]);
-        }
-
-        // Show banner toast
-        toast(`🚨 [${severity.toUpperCase()}] ${title}: ${body}`);
-
-        // Trigger native desktop notification if window is minimized/blurred or active
-        displayNativeBrowserNotification(title, {
-          body,
-          icon: '/vendor/icons/icon-192.png',
-          tag: 'floodai-fcm-alert'
+        // Foreground message listener
+        fcmMessaging.onMessage((payload) => {
+          console.log('[FCM] Foreground notification received:', payload);
+          handleIncomingNotificationPayload(payload);
         });
-      });
-    } else {
-      console.warn('[FCM] Firebase cloud messaging is not supported in this browser context.');
+      } else {
+        console.warn('[FCM] Firebase cloud messaging is not supported in this browser context.');
+      }
     }
   } catch (e) {
     console.warn('[FCM] Initialization notice:', e.message);
   }
 
+  // Connect to real-time notification stream
+  connectNotificationStream();
+
   // If permission was already granted previously, auto-sync service worker & token
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     autoSyncServiceWorkerAndToken();
+  }
+}
+
+/**
+ * Unified incoming notification processor (FCM Foreground + SSE Stream)
+ */
+function handleIncomingNotificationPayload(payload) {
+  const title = payload.notification?.title || payload.data?.title || payload.title || '🚨 FloodAI Emergency Alert';
+  const body = payload.notification?.body || payload.data?.body || payload.body || 'Elevated flood risk detected in your monitored zone.';
+  const severity = payload.data?.severity || payload.severity || 'High';
+
+  // 1. Play alert acoustic sound
+  if (typeof AlertSound !== 'undefined') {
+    AlertSound.play(severity === 'Very High' ? 'red' : (severity === 'High' ? 'orange' : 'yellow'));
+  }
+  if (typeof vibrate === 'function') {
+    vibrate([300, 150, 300]);
+  }
+
+  // 2. Show prominent toast
+  if (typeof toast === 'function') {
+    toast(`🚨 [${String(severity).toUpperCase()}] ${title}: ${body}`);
+  }
+
+  // 3. Trigger native desktop OS notification
+  displayNativeBrowserNotification(title, {
+    body,
+    icon: '/vendor/icons/icon-192.png',
+    tag: `floodai-alert-${Date.now()}`,
+    data: payload.data || payload
+  });
+}
+
+/**
+ * Connects to the real-time Server-Sent Events notification stream from backend
+ */
+function connectNotificationStream() {
+  if (typeof EventSource === 'undefined') return;
+  if (notificationEventSource) {
+    try { notificationEventSource.close(); } catch (_) {}
+  }
+
+  const streamUrl = (typeof API_BASE !== 'undefined' ? API_BASE : '/api') + '/notifications/stream';
+  try {
+    notificationEventSource = new EventSource(streamUrl);
+
+    notificationEventSource.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'notification' && msg.payload) {
+          handleIncomingNotificationPayload(msg.payload);
+        }
+      } catch (err) {
+        // Heartbeat or parse notice
+      }
+    };
+
+    notificationEventSource.onerror = () => {
+      // Automatic reconnection handled natively by EventSource
+    };
+  } catch (err) {
+    console.warn('[FCM:Stream] Real-time stream initialization notice:', err.message);
   }
 }
 
@@ -80,9 +138,24 @@ function displayNativeBrowserNotification(title, options = {}) {
     ...options
   };
 
+  // 1. Send to active Service Worker controller if available
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        title,
+        options: defaultOptions
+      });
+    } catch (_) {}
+  }
+
+  // 2. Dispatch via ServiceWorkerRegistration.showNotification (recommended for modern Chromium)
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification(title, defaultOptions);
+      if (reg && typeof reg.showNotification === 'function') {
+        return reg.showNotification(title, defaultOptions);
+      }
+      throw new Error('showNotification not supported on registration');
     }).catch(() => {
       try {
         new Notification(title, defaultOptions);
@@ -96,6 +169,20 @@ function displayNativeBrowserNotification(title, options = {}) {
 }
 
 /**
+ * Helper to convert Base64 VAPID key to Uint8Array for PushManager
+ */
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
  * Auto-syncs service worker and token when permission is already granted
  */
 async function autoSyncServiceWorkerAndToken() {
@@ -103,20 +190,46 @@ async function autoSyncServiceWorkerAndToken() {
   try {
     const swUrl = new URL('firebase-messaging-sw.js', window.location.href).href;
     const registration = await navigator.serviceWorker.register(swUrl, { scope: './' });
-    
+    await navigator.serviceWorker.ready;
+
     if (!state.fcmToken) {
       let token = null;
+
+      // Try Firebase SDK token
       if (fcmMessaging) {
         try {
           token = await fcmMessaging.getToken({
             vapidKey: VAPID_PUBLIC_KEY,
             serviceWorkerRegistration: registration,
           });
+        } catch (_) {
+          try {
+            token = await fcmMessaging.getToken({ serviceWorkerRegistration: registration });
+          } catch (_) {}
+        }
+      }
+
+      // Try native PushManager subscription
+      if (!token && registration.pushManager) {
+        try {
+          let sub = await registration.pushManager.getSubscription();
+          if (!sub && typeof VAPID_PUBLIC_KEY === 'string') {
+            sub = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+            }).catch(() => null);
+          }
+          if (sub) {
+            token = btoa(JSON.stringify(sub));
+          }
         } catch (_) {}
       }
+
+      // Resilient client fallback token
       if (!token) {
         token = `fcm_web_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       }
+
       state.fcmToken = token;
       try { localStorage.setItem('floodai-fcm-token', token); } catch (_) {}
       api('/notifications/register-token', 'POST', { token, userAgent: navigator.userAgent }).catch(() => {});
@@ -146,13 +259,14 @@ async function enableWebPushNotifications() {
       return;
     }
 
-    // Register service worker with dynamic scope
+    // Register service worker and await activation readiness
     const swUrl = new URL('firebase-messaging-sw.js', window.location.href).href;
     const registration = await navigator.serviceWorker.register(swUrl, { scope: './' });
     console.log('[SW] Registered service worker successfully:', registration.scope);
+    await navigator.serviceWorker.ready;
 
     if (!fcmMessaging) {
-      initFirebase();
+      await initFirebase();
     }
 
     let token = null;
@@ -163,7 +277,32 @@ async function enableWebPushNotifications() {
           serviceWorkerRegistration: registration,
         });
       } catch (fcmTokenErr) {
-        console.warn('[FCM] Cloud token fetch note, using validated browser token:', fcmTokenErr.message);
+        console.warn('[FCM] VAPID token fetch note, attempting default key:', fcmTokenErr.message);
+        try {
+          token = await fcmMessaging.getToken({
+            serviceWorkerRegistration: registration,
+          });
+        } catch (fbErr) {
+          console.warn('[FCM] Default token fetch note:', fbErr.message);
+        }
+      }
+    }
+
+    // Resilient PushManager subscription fallback
+    if (!token && registration.pushManager) {
+      try {
+        let sub = await registration.pushManager.getSubscription();
+        if (!sub && typeof VAPID_PUBLIC_KEY === 'string') {
+          sub = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+          }).catch(() => null);
+        }
+        if (sub) {
+          token = btoa(JSON.stringify(sub));
+        }
+      } catch (subErr) {
+        console.warn('[FCM:PushManager]', subErr.message);
       }
     }
 
@@ -212,9 +351,17 @@ async function triggerTestPush() {
   }
 
   try {
-    toast('Dispatching Web Push test notification...');
+    toast('📡 Dispatching Web Push test notification...');
     
-    // 1. Dispatch through backend API
+    // 1. Play acoustic siren and audio chime
+    if (typeof AlertSound !== 'undefined') {
+      AlertSound.play('yellow');
+    }
+    if (typeof vibrate === 'function') {
+      vibrate([200, 100, 200]);
+    }
+
+    // 2. Dispatch through backend API
     api('/notifications/test-push', 'POST', {
       token: state.fcmToken,
       title: '🚨 FloodAI Emergency Verification',
@@ -223,15 +370,7 @@ async function triggerTestPush() {
       console.warn('[FCM:BackendPush] Notice:', err.message);
     });
 
-    // 2. Play acoustic siren and audio chime
-    if (typeof AlertSound !== 'undefined') {
-      AlertSound.play('yellow');
-    }
-    if (typeof vibrate === 'function') {
-      vibrate([200, 100, 200]);
-    }
-
-    // 3. Immediately trigger native browser notification pop-up
+    // 3. Immediately trigger native browser notification pop-up via Service Worker
     displayNativeBrowserNotification('🚨 FloodAI Emergency Verification', {
       body: 'Web Push alerts are active and synchronized with your browser!',
       tag: 'floodai-test-verification'

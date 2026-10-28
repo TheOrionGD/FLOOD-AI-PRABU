@@ -27,10 +27,14 @@ This project and everyone participating in it is governed by the [FloodAI Code o
 ### 3. Verification & Testing
 Before opening a pull request, ensure all verification suites pass:
 ```bash
-node test_climate_engine.js
-node test_climate_backgrounds.js
-node test_light_theme_particles.js
-node test_responsive_role_nav.js
+# Run all core verification suites via npm
+npm test
+
+# Or execute individual test scripts
+node tests/test_climate_engine.js
+node tests/test_climate_backgrounds.js
+node tests/test_light_theme_particles.js
+node tests/test_responsive_role_nav.js
 ```
 
 ### 4. Pull Request Guidelines

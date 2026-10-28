@@ -206,6 +206,14 @@ function renderSidebarNavigation() {
           <span class="sidebar-icon">⭐</span>
           <span class="sidebar-label">Saved Locations</span>
         </a>
+        <a class="sidebar-item ${curPage === 'resident-radar' ? 'active' : ''}" onclick="goTo('resident-radar')" title="1,000km Live Flood Radar">
+          <span class="sidebar-icon">📡</span>
+          <span class="sidebar-label">1,000km Live Radar</span>
+        </a>
+        <a class="sidebar-item ${curPage === 'resident-simulation' ? 'active' : ''}" onclick="goTo('resident-simulation')" title="Flood Alert Simulator">
+          <span class="sidebar-icon">🧪</span>
+          <span class="sidebar-label">Alert Simulator</span>
+        </a>
       </div>
     `;
   }
@@ -313,59 +321,22 @@ function renderShell() {
           </div>
         </header>
 
-        <!-- Collapsible Liquid Glass Sidebar (Desktop) -->
-        <aside class="saas-sidebar ${state.sidebarCollapsed ? 'collapsed' : ''}" id="saasSidebar">
-          <div>
-            <!-- Sidebar Header & Collapse Toggle -->
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:0 6px;">
-              <div class="brand" onclick="goTo('home')" style="cursor:pointer;" title="FloodAI Overview">
-                <span class="mark">${iconWave()}</span> <span class="brand-text">FloodAI</span>
-              </div>
-              <button class="icon-btn" onclick="toggleSidebarCollapse()" title="Toggle sidebar collapse" style="width:28px; height:28px; font-size:11px;">
-                ${state.sidebarCollapsed ? '▶' : '◀'}
-              </button>
-            </div>
-
-            <!-- Dynamic Role Navigation & Auto-Config Switcher -->
-            <div id="sidebarNavMount">
-              ${renderSidebarNavigation()}
-            </div>
-          </div>
-
-          <!-- Sidebar Footer: Profile, Settings & Sign Out -->
-          <div style="border-top:1px solid var(--glass-border); padding-top:14px; display:flex; flex-direction:column; gap:4px;">
-            <a class="sidebar-item ${state.page === 'profile' ? 'active' : ''}" onclick="goTo('profile')" title="Operator Profile">
-              <span class="sidebar-icon">👤</span>
-              <span class="sidebar-label">Operator Profile</span>
-            </a>
-            <a class="sidebar-item ${state.page === 'settings' ? 'active' : ''}" onclick="goTo('settings')" title="System Preferences">
-              <span class="sidebar-icon">⚙️</span>
-              <span class="sidebar-label">Settings</span>
-            </a>
-            ${state.user ? `
-              <a class="sidebar-item" onclick="logout()" title="Sign Out" style="color:var(--red);">
-                <span class="sidebar-icon">⎋</span>
-                <span class="sidebar-label">Sign Out</span>
-              </a>
-            ` : `
-              <a class="sidebar-item" onclick="goTo('login')" title="Sign In" style="color:var(--accent-primary);">
-                <span class="sidebar-icon">➔</span>
-                <span class="sidebar-label">Sign In</span>
-              </a>
-            `}
-          </div>
-        </aside>
-
         <!-- Right SaaS Content Column -->
         <div class="saas-content">
-          <!-- Desktop Topbar (No menubar / tabs on desktop) -->
+          <!-- Desktop Topbar -->
           <header class="saas-topbar">
-            <!-- Breadcrumbs -->
-            <div class="saas-breadcrumbs">
-              <span onclick="goTo('home')" style="cursor:pointer; color:var(--text-secondary);">FloodAI</span>
-              <span>/</span>
+            <!-- Navigation Trigger & Breadcrumbs -->
+            <div class="saas-breadcrumbs" style="display:flex; align-items:center; gap:8px;">
+              <button class="icon-btn" onclick="openMobileMenu()" title="Open Navigation Menu" style="width:34px; height:34px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">
+                <span style="font-size:16px;">☰</span>
+              </button>
+              <div class="brand" onclick="goTo('home')" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-right:4px;" title="FloodAI Overview">
+                <span class="mark" style="width:26px; height:26px;">${iconWave()}</span>
+                <span class="brand-text" style="font-weight:700; font-size:15px;">FloodAI</span>
+              </div>
+              <span style="color:var(--text-muted); opacity:0.6;">/</span>
               <span style="text-transform:capitalize; color:var(--text-secondary); cursor:pointer;" onclick="cycleRoleAutoConfigure()" title="Click to switch role">${role} Workspace</span>
-              <span>/</span>
+              <span style="color:var(--text-muted); opacity:0.6;">/</span>
               <span class="active">${escapeHtml(policy.title || state.page)}</span>
             </div>
 
@@ -384,6 +355,17 @@ function renderShell() {
                 style="display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:12px; background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); font-size:12px; color:var(--text-1); cursor:pointer;">
                 <span style="color:var(--cyber); font-size:13px;">⚡</span>
                 <span><kbd class="cmd-kbd-shortcut">Ctrl+K</kbd></span>
+              </div>
+
+              <!-- Location Sector & Coordinates Pill -->
+              <div class="icon-btn border-scale" id="headerLocationPill" onclick="openLocPickerModal()" title="Location Intelligence & Monitored Catchment Sector"
+                style="width:auto; height:38px; padding:0 12px; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-family:var(--font-mono); border-radius:10px; cursor:pointer;">
+                <span>📍</span>
+                <span style="font-weight:600; color:var(--text-0);" id="headerLocationLabel">${escapeHtml(
+                  (typeof GeoLocationService !== 'undefined' && GeoLocationService.coords?.cityName) 
+                    ? GeoLocationService.coords.cityName 
+                    : ((typeof GeoLocationService !== 'undefined' && GeoLocationService.coords?.district) ? GeoLocationService.coords.district : 'Location')
+                )}</span>
               </div>
 
               <!-- Climate Atmosphere Particle Control Pill -->
@@ -912,6 +894,16 @@ function renderMobileDrawerNavigation() {
           <span style="flex:1; font-weight:600;">Saved Locations</span>
           ${curPage === 'resident-activity' ? '<span style="font-size:10px; color:var(--cyber); font-family:var(--font-mono);">●</span>' : ''}
         </a>
+        <a class="mobile-drawer-item ${curPage === 'resident-radar' ? 'active' : ''}" onclick="goTo('resident-radar'); closeMobileMenu();">
+          <span style="font-size:16px;">📡</span>
+          <span style="flex:1; font-weight:600;">1,000km Live Radar</span>
+          ${curPage === 'resident-radar' ? '<span style="font-size:10px; color:var(--cyber); font-family:var(--font-mono);">●</span>' : ''}
+        </a>
+        <a class="mobile-drawer-item ${curPage === 'resident-simulation' ? 'active' : ''}" onclick="goTo('resident-simulation'); closeMobileMenu();">
+          <span style="font-size:16px;">🧪</span>
+          <span style="flex:1; font-weight:600;">Flood Alert Simulator</span>
+          ${curPage === 'resident-simulation' ? '<span style="font-size:10px; color:var(--cyber); font-family:var(--font-mono);">●</span>' : ''}
+        </a>
       </div>
     `;
   }
@@ -1114,12 +1106,14 @@ function renderPage() {
     'analyst-history': typeof renderAnalystHistory === 'function' ? renderAnalystHistory : renderHome,
     'analyst-threat': typeof renderAnalystThreat === 'function' ? renderAnalystThreat : renderHome,
 
-    // Resident Workspace (5 Screens)
+    // Resident Workspace (6 Screens)
     'resident-risk': typeof renderResidentRisk === 'function' ? renderResidentRisk : renderHome,
     'resident-weather': typeof renderResidentWeather === 'function' ? renderResidentWeather : renderHome,
     'resident-alerts': typeof renderResidentAlerts === 'function' ? renderResidentAlerts : renderHome,
     'resident-guide': typeof renderResidentGuide === 'function' ? renderResidentGuide : renderHome,
     'resident-activity': typeof renderResidentActivity === 'function' ? renderResidentActivity : renderHome,
+    'resident-radar': typeof renderResidentRadar === 'function' ? renderResidentRadar : renderHome,
+    'resident-simulation': typeof renderResidentSimulation === 'function' ? renderResidentSimulation : renderHome,
 
     // Preserved Operational Screens
     portal: renderPortal,
@@ -1233,11 +1227,59 @@ function renderLocPickerBody() {
 
   const cur = GeoLocationService.getStatus();
   const coords = cur.coords;
+  const isRequesting = cur.status === 'requesting';
   const placeLabel = coords
     ? (coords.cityName || coords.district || `${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}°`)
-    : 'Not determined';
+    : (isRequesting ? 'Acquiring GPS...' : 'Not determined');
   const isGps = coords?.source === 'gps';
   const isManual = coords?.source === 'manual';
+  const isCached = coords?.source === 'cached' || coords?.isCached;
+
+  // Auto-populate city input with fetched place name or coordinates
+  let cityInputValue = '';
+  if (coords) {
+    if (coords.cityName) {
+      cityInputValue = coords.cityName + (coords.stateName ? `, ${coords.stateName}` : '');
+    } else if (coords.district) {
+      cityInputValue = coords.district + (coords.stateName ? `, ${coords.stateName}` : '');
+    } else if (coords.locality) {
+      cityInputValue = coords.locality;
+    } else if (typeof coords.lat === 'number') {
+      cityInputValue = `${coords.lat.toFixed(4)}°, ${coords.lon.toFixed(4)}°`;
+    }
+  }
+
+  // Available monitored districts
+  const distList = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length)
+    ? DISTRICTS
+    : (typeof DEFAULT_MONITORED_DISTRICTS !== 'undefined' ? DEFAULT_MONITORED_DISTRICTS : []);
+
+  // Auto-select matching or nearest monitored disaster district
+  let matchedDistrict = '';
+  if (distList.length && coords) {
+    const exact = distList.find(d => 
+      (coords.district && d.district.toLowerCase() === coords.district.toLowerCase()) ||
+      (coords.cityName && d.district.toLowerCase() === coords.cityName.toLowerCase()) ||
+      (coords.cityName && coords.cityName.toLowerCase().includes(d.district.toLowerCase())) ||
+      (coords.district && coords.district.toLowerCase().includes(d.district.toLowerCase()))
+    );
+    if (exact) {
+      matchedDistrict = exact.district;
+    } else if (coords.nearestDistrict) {
+      matchedDistrict = coords.nearestDistrict;
+    } else if (typeof coords.lat === 'number' && typeof coords.lon === 'number') {
+      let minDist = Infinity;
+      distList.forEach(d => {
+        if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+          const dist = Math.hypot(coords.lat - d.latitude, coords.lon - d.longitude);
+          if (dist < minDist) {
+            minDist = dist;
+            matchedDistrict = d.district;
+          }
+        }
+      });
+    }
+  }
 
   body.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:16px;">
@@ -1256,13 +1298,14 @@ function renderLocPickerBody() {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div>
             <div style="font-size:14px; font-weight:700; color:var(--text-0); display:flex; align-items:center; gap:6px;">
-              <span>${isGps ? '🛰️ Device GPS' : (isManual ? '📍 Manual Location' : '⚡ Standby')}</span>
+              <span>${isGps ? '🛰️ Device GPS' : (isManual ? '📍 Manual Location' : (isRequesting ? '🔄 Acquiring GPS' : '⚡ Standby'))}</span>
               <span style="color:var(--cyber);">${escapeHtml(placeLabel)}</span>
             </div>
             ${coords ? `<div style="font-size:11px; font-family:var(--font-mono); color:var(--text-2); margin-top:3px;">${coords.lat.toFixed(4)}°, ${coords.lon.toFixed(4)}° (±${coords.accuracyMeters}m accuracy)</div>` : ''}
+            ${isRequesting ? `<div style="font-size:11.5px; color:var(--cyber); margin-top:4px;"><span class="spin-anim">🔄</span> Contacting satellite &amp; geocoding sensor feeds...</div>` : ''}
           </div>
-          <button class="btn btn-sm" id="btnPickerGpsDetect" onclick="GeoLocationService.requestDeviceLocation(true).then(() => renderLocPickerBody())" style="gap:6px;">
-            🛰️ Acquire GPS Lock
+          <button class="btn btn-sm" id="btnPickerGpsDetect" onclick="acquireGpsFromModal()" style="gap:6px;" ${isRequesting ? 'disabled' : ''}>
+            ${isRequesting ? '<span class="spin-anim">🔄</span> Acquiring GPS Lock...' : '🛰️ Acquire GPS Lock'}
           </button>
         </div>
         ${cur.error ? `<div style="font-size:11.5px; color:var(--amber); margin-top:8px; line-height:1.4;">⚠️ ${escapeHtml(cur.error)}</div>` : ''}
@@ -1270,24 +1313,33 @@ function renderLocPickerBody() {
 
       <!-- Worldwide City Geocoding Search -->
       <div>
-        <label style="font-size:12px; font-weight:600; color:var(--text-1); margin-bottom:6px; display:block;">Search Any Worldwide City</label>
+        <label style="font-size:12px; font-weight:600; color:var(--text-1); margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+          <span>Search Any Worldwide City</span>
+          ${(isGps || isCached) && cityInputValue ? `<span style="font-size:11px; color:var(--cyber); font-weight:600; display:inline-flex; align-items:center; gap:4px;">✓ Auto-updated from GPS</span>` : ''}
+        </label>
         <div class="city-search-wrap">
           <span class="city-search-icon">🔍</span>
-          <input type="text" id="locPickerSearchInput" class="city-search-input" placeholder="Type city name (e.g. London, Tokyo, Mumbai, New York)..." autocomplete="off" oninput="handlePickerCitySearch(this.value)">
+          <input type="text" id="locPickerSearchInput" class="city-search-input" value="${escapeHtml(cityInputValue)}" placeholder="Type city name (e.g. London, Tokyo, Mumbai, New York)..." autocomplete="off" oninput="handlePickerCitySearch(this.value)">
         </div>
         <div id="pickerSearchResults" class="city-search-results"></div>
       </div>
 
       <!-- Monitored Disaster Districts Quick-Select -->
       <div class="field">
-        <label style="font-size:12px; font-weight:600; color:var(--text-1);">Or Select Monitored Disaster District</label>
-        <select id="modalDistrictSelect" onchange="GeoLocationService.selectManualDistrict(this.value)" style="margin-top:6px;">
+        <label style="font-size:12px; font-weight:600; color:var(--text-1); display:flex; align-items:center; justify-content:space-between;">
+          <span>Or Select Monitored Disaster District</span>
+          ${(isGps || isCached) && matchedDistrict ? `<span style="font-size:11px; color:var(--ocean); font-weight:600; display:inline-flex; align-items:center; gap:4px;">✓ Auto-selected nearest sector (${escapeHtml(matchedDistrict)})</span>` : ''}
+        </label>
+        <select id="modalDistrictSelect" onchange="onPickerDistrictSelectChange(this.value)" style="margin-top:6px;">
           <option value="">-- Choose Monitored Sector --</option>
-          ${(typeof DISTRICTS !== 'undefined' ? DISTRICTS : []).map(d => `
-            <option value="${d.district}" ${(coords?.district === d.district || coords?.cityName === d.district) ? 'selected' : ''}>
-              ${d.district}, ${d.state} (${d.avg_elevation}m elevation)
-            </option>
-          `).join('')}
+          ${distList.map(d => {
+            const isSelected = Boolean(matchedDistrict && matchedDistrict.toLowerCase() === d.district.toLowerCase());
+            return `
+              <option value="${d.district}" ${isSelected ? 'selected' : ''}>
+                ${d.district}, ${d.state} (${d.avg_elevation}m elevation)${isSelected && coords?.source === 'gps' && coords?.cityName !== d.district ? ' — [Nearest Monitored Sector]' : ''}
+              </option>
+            `;
+          }).join('')}
         </select>
       </div>
 
@@ -1296,6 +1348,60 @@ function renderLocPickerBody() {
       </div>
     </div>
   `;
+
+  // Explicit programmatic synchronization to guarantee DOM input values match
+  const inputEl = document.getElementById('locPickerSearchInput');
+  if (inputEl && cityInputValue) {
+    inputEl.value = cityInputValue;
+  }
+  const selectEl = document.getElementById('modalDistrictSelect');
+  if (selectEl && matchedDistrict) {
+    selectEl.value = matchedDistrict;
+  }
+}
+
+async function acquireGpsFromModal() {
+  const btn = document.getElementById('btnPickerGpsDetect');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spin-anim">🔄</span> Acquiring GPS Lock...`;
+  }
+  try {
+    if (typeof GeoLocationService !== 'undefined') {
+      await GeoLocationService.requestDeviceLocation(true);
+    }
+  } finally {
+    renderLocPickerBody();
+  }
+}
+
+function onPickerDistrictSelectChange(val) {
+  if (!val) return;
+  if (typeof GeoLocationService !== 'undefined') {
+    GeoLocationService.selectManualDistrict(val);
+  }
+  const distList = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length)
+    ? DISTRICTS
+    : (typeof DEFAULT_MONITORED_DISTRICTS !== 'undefined' ? DEFAULT_MONITORED_DISTRICTS : []);
+  const d = distList.find(x => x.district.toLowerCase() === val.toLowerCase());
+  const inputEl = document.getElementById('locPickerSearchInput');
+  if (inputEl && d) {
+    inputEl.value = `${d.district}, ${d.state}`;
+  }
+  renderLocPickerBody();
+}
+
+// Auto-update modal if GPS finishes resolving while modal is open
+if (typeof GeoLocationService !== 'undefined') {
+  const subscribeFn = GeoLocationService.subscribe || GeoLocationService.addListener;
+  if (typeof subscribeFn === 'function') {
+    subscribeFn.call(GeoLocationService, () => {
+      const modal = document.getElementById('locPickerModal');
+      if (modal && modal.classList.contains('open')) {
+        renderLocPickerBody();
+      }
+    });
+  }
 }
 
 function handlePickerCitySearch(query) {
@@ -1735,6 +1841,13 @@ async function getSystemPermissionsState() {
 function renderLocationHeaderWidget() {
   if (window.climateParticleEngine) {
     window.climateParticleEngine.updateUIBadge();
+  }
+  const label = document.getElementById('headerLocationLabel');
+  if (label && typeof GeoLocationService !== 'undefined') {
+    const c = GeoLocationService.coords;
+    if (c) {
+      label.textContent = c.cityName || c.district || `${c.lat.toFixed(1)}°, ${c.lon.toFixed(1)}°`;
+    }
   }
 }
 

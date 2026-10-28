@@ -73,7 +73,7 @@ function renderAlerts(root) {
 
         <!-- Dynamic SOS & Siren Trigger Button -->
         <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
-          <button class="sos-btn ${isSirenActive ? 'sounding' : ''}" id="sosBtn" onclick="toggleSOS()" style="cursor:pointer; transition:all 0.25s ease;">
+          <button class="sos-btn ${isSirenActive ? 'sounding' : ''}" id="sosBtn" onclick="toggleAcousticSiren()" style="cursor:pointer; transition:all 0.25s ease;" title="Trigger Continuous Emergency Acoustic Siren">
             ${isSirenActive ? 'STOP' : 'SOS'}
           </button>
           
@@ -219,7 +219,7 @@ function renderAlerts(root) {
   }
 }
 
-function testSound(level) {
+async function testSound(level) {
   const names = {
     green: 'Green Chime (Advisory Notice)',
     yellow: 'Yellow Alert (Elevated Risk)',
@@ -228,10 +228,15 @@ function testSound(level) {
   };
 
   if (typeof AlertSound !== 'undefined' && AlertSound.play) {
-    const ok = AlertSound.play(level, { force: true, maxMs: level === 'red' ? 12000 : undefined });
+    const statusEl = document.getElementById('activeSoundStatus');
+    if (statusEl) {
+      statusEl.textContent = `STARTING: ${level.toUpperCase()}...`;
+      statusEl.style.color = 'var(--cyber)';
+    }
+
+    const ok = await AlertSound.play(level, { force: true, maxMs: level === 'red' ? 15000 : undefined });
     if (ok) {
-      if (typeof toast === 'function') toast(`Acoustic Test Playing: ${names[level]}`);
-      const statusEl = document.getElementById('activeSoundStatus');
+      if (typeof toast === 'function') toast(`Acoustic Test Playing: ${names[level] || level}`);
       if (statusEl) {
         statusEl.textContent = `PLAYING: ${level.toUpperCase()}`;
         statusEl.style.color = level === 'red' ? 'var(--red)' : (level === 'orange' ? 'var(--amber)' : 'var(--cyber)');
@@ -242,21 +247,26 @@ function testSound(level) {
   }
 }
 
-function toggleSOS() {
+async function toggleAcousticSiren() {
   if (typeof AlertSound === 'undefined') return;
 
   if (AlertSound.playing === 'red') {
-    AlertSound.stop();
-    if (typeof toast === 'function') toast('SOS Civil Siren silenced');
-    syncSirenUI(null);
+    stopSirenAction();
     return;
   }
 
-  AlertSound.play('red', { force: true, maxMs: 30000 });
-  if (typeof vibrate === 'function') vibrate([400, 200, 400, 200, 400]);
-  if (typeof pushNotify === 'function') pushNotify('FloodAI Emergency Siren Active', 'Civil defense broadcast sent to emergency dispatch.');
-  if (typeof toast === 'function') toast('🚨 SOS broadcast activated — Continuous civil siren sounding!');
-  syncSirenUI('red');
+  const ok = await AlertSound.play('red', { force: true, maxMs: 30000 });
+  if (ok) {
+    if (typeof vibrate === 'function') vibrate([400, 200, 400, 200, 400]);
+    if (typeof pushNotify === 'function') pushNotify('FloodAI Emergency Siren Active', 'Civil defense broadcast sent to emergency dispatch.');
+    if (typeof toast === 'function') toast('🚨 SOS Siren Activated — Continuous Civil Defense Alarm Sounding!');
+    syncSirenUI('red');
+  }
+}
+
+// Fallback alias for compatibility
+function toggleSOS() {
+  toggleAcousticSiren();
 }
 
 function stopSirenAction() {
@@ -286,10 +296,15 @@ function syncSirenUI(current) {
   }
 }
 
-function handleSoundToggle(checked) {
+async function handleSoundToggle(checked) {
   if (typeof AlertSound !== 'undefined' && AlertSound.setEnabled) {
     AlertSound.setEnabled(checked);
-    if (typeof toast === 'function') toast(checked ? 'Acoustic alerts enabled' : 'Acoustic alerts muted');
+    if (checked) {
+      await AlertSound.play('green', { force: true });
+      if (typeof toast === 'function') toast('Acoustic alerts enabled — Test chime sounded');
+    } else {
+      if (typeof toast === 'function') toast('Acoustic alerts muted');
+    }
   }
 }
 

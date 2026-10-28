@@ -232,6 +232,22 @@ const ROUTE_POLICIES = {
     roleGroup: 'resident',
     description: 'Personalized district bookmark manager and historical risk assessments.'
   },
+  'resident-radar': {
+    title: '1,000km Live Flood Detection Radar',
+    isPublic: false,
+    layout: 'saas',
+    requiredRoles: ['resident', 'user', 'analyst', 'admin'],
+    roleGroup: 'resident',
+    description: 'Synoptic 1,000km radial perimeter flood detection from live GPS coordinates.'
+  },
+  'resident-simulation': {
+    title: 'Flood Alert Simulation & Notification Testing',
+    isPublic: false,
+    layout: 'saas',
+    requiredRoles: ['resident', 'user', 'analyst', 'admin'],
+    roleGroup: 'resident',
+    description: 'Safe simulation workspace testing multi-channel alert delivery (acoustic siren, Brevo email, SMS, and Firebase Web Push) strictly isolated from live emergency broadcasts.'
+  },
 
   // Preserved Existing Operational Modules
   portal: {
@@ -328,6 +344,7 @@ const PAGES = [
   ['resident-alerts', 'Emergency Advisories', '📢', 'Localized civil-defense warnings & acoustic station', 'resident'],
   ['resident-guide', 'Preparedness Handbook', '📖', 'Evacuation protocols, go-bag checklists & shelters', 'resident'],
   ['resident-activity', 'Saved Locations', '⭐', 'Monitored sector bookmarks & quick risk checks', 'resident'],
+  ['resident-radar', '1,000km Live Radar', '📡', 'Synoptic 1000km radial perimeter flood detection from GPS', 'resident'],
 
   // Preserved Operational Screens
   ['portal', 'Resident Portal', '🛡️', 'Personal flood risk, safe routes & local shelters', 'operational'],

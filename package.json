@@ -1,0 +1,30 @@
+{
+  "name": "flood-ai-project",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FloodAI — AI-driven Flood Prediction, Real-Time Alerting, and Emergency Intelligence Platform",
+  "scripts": {
+    "test": "node tests/test_climate_engine.js && node tests/test_climate_backgrounds.js && node tests/test_light_theme_particles.js && node tests/test_responsive_role_nav.js",
+    "test:unit": "node tests/test_climate_engine.js && node tests/test_climate_backgrounds.js && node tests/test_light_theme_particles.js && node tests/test_responsive_role_nav.js",
+    "test:backend": "node backend/test_backend.js",
+    "test:full": "node tests/test_full_system.js",
+    "test:saas": "node tests/test_saas_flow.js",
+    "test:ml": "python ml_model/test_ml_service.py",
+    "audit:secrets": "node scripts/validation/validate_secrets.js",
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "python -m http.server 3000 --directory frontend",
+    "start:ml": "cd ml_model && python predict_api.py"
+  },
+  "keywords": [
+    "flood-prediction",
+    "machine-learning",
+    "xgboost",
+    "disaster-management",
+    "liquid-glass",
+    "express",
+    "python",
+    "shap"
+  ],
+  "author": "TheOrionGD",
+  "license": "Apache-2.0"
+}

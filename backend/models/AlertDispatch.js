@@ -29,7 +29,7 @@ const AlertDispatchSchema = new mongoose.Schema({
   },
   channel: {
     type: String,
-    enum: ["fcm", "email", "sms", "broadcast"],
+    enum: ["fcm", "email", "sms", "broadcast", "siren"],
     required: true,
   },
   recipient: {
@@ -41,10 +41,35 @@ const AlertDispatchSchema = new mongoose.Schema({
     ref: "User",
     default: null,
   },
+  isSimulation: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  scenario: {
+    type: String,
+    default: null,
+  },
+  providerMessageId: {
+    type: String,
+    default: null,
+  },
   status: {
     type: String,
-    enum: ["queued", "sent", "delivered", "failed"],
-    default: "queued",
+    enum: [
+      "pending",
+      "queued",
+      "accepted",
+      "sent",
+      "dispatched",
+      "delivered",
+      "failed",
+      "sandbox_simulated",
+      "simulated_local",
+      "sse_stream_broadcast",
+      "suppressed_cooldown"
+    ],
+    default: "pending",
   },
   providerResponse: {
     type: mongoose.Schema.Types.Mixed,
@@ -57,6 +82,10 @@ const AlertDispatchSchema = new mongoose.Schema({
   dispatchedAt: {
     type: Date,
     default: Date.now,
+  },
+  acknowledgedAt: {
+    type: Date,
+    default: null,
   },
 }, { timestamps: true });
 

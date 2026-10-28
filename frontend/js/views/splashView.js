@@ -87,9 +87,8 @@ function bypassSplash() {
     } else {
       goTo('resident-risk');
     }
-  } else if (!state.onboardingCompleted) {
-    goTo('onboarding');
   } else {
-    goTo('landing');
+    // Sequence: Splash Screen -> Onboarding (7 screens) -> Landing page
+    goTo('onboarding');
   }
 }

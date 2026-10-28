@@ -12,6 +12,8 @@ class FcmService {
     this.projectId = process.env.FIREBASE_PROJECT_ID || "floodai-24a0f";
     this.serverKey = process.env.FIREBASE_SERVER_KEY || null;
     this.serviceAccount = null;
+    this.sseClients = new Set();
+    this.guestTokens = new Set();
 
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
@@ -26,24 +28,63 @@ class FcmService {
     return Boolean(this.serverKey || this.serviceAccount);
   }
 
+  addSseClient(res) {
+    this.sseClients.add(res);
+    try {
+      res.write(`data: ${JSON.stringify({ type: "connected", timestamp: new Date().toISOString() })}\n\n`);
+    } catch (_) {}
+  }
+
+  removeSseClient(res) {
+    this.sseClients.delete(res);
+  }
+
+  broadcastSse(message) {
+    const payloadStr = `data: ${JSON.stringify(message)}\n\n`;
+    for (const client of this.sseClients) {
+      try {
+        client.write(payloadStr);
+      } catch (e) {
+        this.sseClients.delete(client);
+      }
+    }
+  }
+
+  registerGuestToken(token) {
+    if (token) this.guestTokens.add(token);
+  }
+
   /**
    * Dispatches a Web Push notification to a specific browser FCM registration token.
    */
   async sendToToken(token, { title, body, icon = "/vendor/icons/icon-192.png", data = {} }) {
     if (!token) throw new Error("FCM device token is required");
 
+    // Real-time broadcast to all connected active client streams
+    this.broadcastSse({
+      type: "notification",
+      payload: {
+        title,
+        body,
+        icon,
+        data,
+      },
+      targetToken: token,
+      timestamp: new Date().toISOString(),
+    });
+
     if (!this.isConfigured()) {
       console.log("--------------------------------------------------");
-      console.log(`[FCM:WebPush:Sandbox] TOKEN: ${token.substring(0, 20)}...`);
-      console.log(`[FCM:WebPush:Sandbox] TITLE: ${title}`);
-      console.log(`[FCM:WebPush:Sandbox] BODY:  ${body}`);
-      console.log(`[FCM:WebPush:Sandbox] DATA:  ${JSON.stringify(data)}`);
+      console.log(`[FCM:WebPush:SSE] Broadcasted to connected client streams. TOKEN: ${token.substring(0, 20)}...`);
+      console.log(`[FCM:WebPush:SSE] TITLE: ${title}`);
+      console.log(`[FCM:WebPush:SSE] BODY:  ${body}`);
       console.log("--------------------------------------------------");
       return {
-        status: "delivered",
-        provider: "fcm_sandbox",
-        messageId: `web_fcm_${Date.now()}`,
+        status: "sse_stream_broadcast",
+        provider: "fcm_stream",
+        messageId: `sse_fcm_${Date.now()}`,
         token,
+        note: "Broadcast to active in-browser Server-Sent Events streams (FCM Server Key unconfigured)",
       };
     }
 
@@ -80,7 +121,7 @@ class FcmService {
         }
 
         return {
-          status: "sent",
+          status: "accepted",
           provider: "fcm_legacy",
           messageId: res.data.results?.[0]?.message_id || `fcm_${Date.now()}`,
           token,
@@ -93,10 +134,11 @@ class FcmService {
 
     // Default sandbox fallback
     return {
-      status: "delivered",
+      status: "sandbox_simulated",
       provider: "fcm_sandbox",
       messageId: `web_fcm_${Date.now()}`,
       token,
+      note: "Dispatched to local sandbox (unconfigured FCM)",
     };
   }
 
@@ -138,6 +180,19 @@ class FcmService {
       u.fcmTokens?.forEach((t) => tokens.add(t.token));
     });
 
+    // Include all active guest browser tokens
+    this.guestTokens.forEach((t) => tokens.add(t));
+
+    // Broadcast in real-time to all connected browser SSE client streams
+    this.broadcastSse({
+      type: "notification",
+      payload: {
+        ...payload,
+        district,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
     const dispatchResults = [];
     for (const token of tokens) {
       try {
@@ -154,6 +209,7 @@ class FcmService {
 
   async removeInvalidToken(token) {
     try {
+      this.guestTokens.delete(token);
       await User.updateMany({}, { $pull: { fcmTokens: { token } } });
       console.log(`[FCM:Cleanup] Removed expired/unregistered token: ${token.substring(0, 15)}...`);
     } catch (e) {

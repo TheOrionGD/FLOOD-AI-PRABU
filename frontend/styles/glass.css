@@ -823,8 +823,8 @@ nav.tabs button:active,
 .page.active {
   display: block;
   opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: blur(0px);
+  transform: none;
+  filter: none;
 }
 
 .page.page-exit {
@@ -1557,42 +1557,273 @@ html.light .public-topbar {
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
-/* Scroll Storytelling Landing Sections */
+/* ================= AWARD-WINNING SCROLLTELLING LANDING SUITE ================= */
+.story-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3.5px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-primary, #33C7FF), var(--accent-secondary, #1FE0A8), var(--accent-tertiary, #B18CFF));
+  z-index: 9999;
+  box-shadow: 0 0 14px var(--accent-glow, rgba(51,199,255,0.4));
+  transition: width 0.08s ease-out;
+  pointer-events: none;
+}
+
+/* Floating Chapter Index Navigation Rail (Desktop) */
+.story-rail {
+  position: fixed !important;
+  right: 22px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 13px !important;
+  background: rgba(8, 16, 28, 0.78) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  padding: 16px 8px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(177, 140, 255, 0.08) !important;
+  pointer-events: auto !important;
+  user-select: none;
+}
+@media (max-width: 900px) {
+  .story-rail {
+    display: none !important;
+  }
+}
+.story-rail-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  padding: 3px;
+}
+.story-rail-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.story-rail-item:hover .story-rail-dot {
+  background: var(--accent-tertiary, #B18CFF);
+  transform: scale(1.25);
+}
+.story-rail-item.active .story-rail-dot {
+  width: 12px;
+  height: 12px;
+  background: #A855F7;
+  background: linear-gradient(135deg, #C084FC, #9333EA);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.9), 0 0 4px rgba(255, 255, 255, 0.9);
+  transform: scale(1.25);
+}
+.story-rail-label {
+  position: absolute;
+  right: 32px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-0);
+  background: rgba(8, 14, 28, 0.94);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  backdrop-filter: blur(14px);
+  padding: 5px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(10px);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.story-rail-item:hover .story-rail-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Floating Bottom Platform Action Strip */
+.story-floating-strip {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(7, 21, 34, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  padding: 10px 22px;
+  border-radius: 40px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 24px rgba(51, 199, 255, 0.12);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+@media (max-width: 600px) {
+  .story-floating-strip {
+    bottom: 14px;
+    padding: 8px 14px;
+    gap: 8px;
+    width: 92%;
+    justify-content: space-between;
+  }
+}
+
+/* Story Section Structure & Transitions */
 .story-section {
-  padding: 90px 24px;
+  padding: 110px 24px;
   max-width: 1240px;
   margin: 0 auto;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
 }
+@media (max-width: 768px) {
+  .story-section {
+    padding: 70px 18px;
+  }
+}
+
 .story-header {
   text-align: center;
-  max-width: 720px;
-  margin: 0 auto 50px;
+  max-width: 780px;
+  margin: 0 auto 56px;
 }
 .story-tag {
-  display: inline-block;
-  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
   border-radius: 20px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--accent-primary);
   background: rgba(51, 199, 255, 0.1);
-  border: 1px solid rgba(51, 199, 255, 0.25);
-  margin-bottom: 14px;
+  border: 1px solid rgba(51, 199, 255, 0.28);
+  margin-bottom: 16px;
 }
 .story-title {
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: clamp(2rem, 4.2vw, 3.2rem);
   font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 16px;
+  line-height: 1.16;
+  letter-spacing: -0.8px;
+  margin-bottom: 18px;
 }
 .story-desc {
-  font-size: 16px;
+  font-size: 16.5px;
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 1.72;
+}
+
+/* Scroll Reveal Elements */
+.story-reveal {
+  opacity: 0.15;
+  transform: translateY(28px);
+  filter: blur(4px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform, filter;
+}
+.story-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* Shimmering Text Gradient */
+.text-gradient-shimmer {
+  background: linear-gradient(135deg, #FFFFFF 20%, var(--accent-primary) 65%, var(--accent-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+html.light .text-gradient-shimmer {
+  background: linear-gradient(135deg, #0B1526 20%, #0077B6 65%, #0096C7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Live Beacon Indicator */
+.hud-beacon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+  box-shadow: 0 0 10px var(--accent-secondary);
+  animation: beaconPulse 2s infinite ease-in-out;
+}
+@keyframes beaconPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); box-shadow: 0 0 4px var(--accent-secondary); }
+}
+
+/* Inundation Stage Simulator Controls */
+.sim-stage-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  transition: background 0.2s;
+}
+.sim-stage-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 3px solid #060B18;
+  box-shadow: 0 0 16px var(--accent-glow);
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+.sim-stage-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+}
+
+/* Interactive Radar District Chips */
+.radar-district-chip {
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.radar-district-chip:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-2px);
+}
+.radar-district-chip.active {
+  color: #04101F;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 18px var(--accent-glow);
+  font-weight: 700;
+  transform: translateY(-2px);
 }
 
 /* Split SaaS Login Layout */
@@ -1995,7 +2226,7 @@ html.light .mobile-drawer-content {
     display: none !important;
   }
   .saas-sidebar {
-    display: flex !important;
+    display: none !important;
   }
   .saas-topbar {
     display: flex !important;

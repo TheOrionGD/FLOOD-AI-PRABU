@@ -102,7 +102,7 @@ class BrevoEmailService {
         );
 
         return {
-          status: "sent",
+          status: "accepted",
           provider: "brevo_api",
           messageId: response.data.messageId,
           to,
@@ -113,18 +113,19 @@ class BrevoEmailService {
       }
     }
 
-    // 3. Fallback Sandbox logger
+    // 3. Fallback Sandbox logger (transparently reports simulation without claiming external delivery)
     console.log("--------------------------------------------------");
     console.log(`[EMAIL:Sandbox] TO: ${to}`);
     console.log(`[EMAIL:Sandbox] SUBJECT: ${subject}`);
     console.log(`[EMAIL:Sandbox] PREVIEW: ${textContent || htmlContent.substring(0, 140)}...`);
     console.log("--------------------------------------------------");
     return {
-      status: "delivered",
+      status: "sandbox_simulated",
       provider: "brevo_sandbox",
       messageId: `sandbox_${Date.now()}`,
       to,
       subject,
+      note: "Dispatched to local sandbox (unconfigured credentials)"
     };
   }
 

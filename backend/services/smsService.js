@@ -116,10 +116,10 @@ class SmsService {
     console.log("--------------------------------------------------");
     return {
       provider: "sandbox",
-      status: "delivered",
+      status: "sandbox_simulated",
       messageId: `sandbox_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       to,
-      note: "Dispatched via FloodAI development SMS sandbox",
+      note: "Dispatched to local sandbox (unconfigured SMS provider)",
     };
   }
 }
