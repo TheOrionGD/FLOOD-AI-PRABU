@@ -1,0 +1,112 @@
+# =====================================================================
+# FloodAI Platform — Render Blueprint (render.yaml)
+# Multi-service Production Deployment Architecture:
+# 1. floodai-ai: Python Flask / Gunicorn ML Microservice
+# 2. floodai-backend: Node.js Express API & MongoDB Atlas Gateway
+# 3. floodai-frontend: Static Site Client Application
+# =====================================================================
+
+services:
+  # -------------------------------------------------------------------
+  # 1. Python ML Microservice (XGBoost, SHAP, Groq Threat Intelligence)
+  # -------------------------------------------------------------------
+  - type: web
+    name: floodai-ai
+    env: python
+    region: oregon
+    plan: starter
+    rootDir: ml_model
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn predict_api:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PORT
+        value: 8000
+      - key: INTERNAL_SERVICE_SECRET
+        generateValue: true
+      - key: STRICT_INTERNAL_AUTH
+        value: "true"
+      - key: GROQ_API_KEY2
+        sync: false
+
+  # -------------------------------------------------------------------
+  # 2. Node.js Express Backend API
+  # -------------------------------------------------------------------
+  - type: web
+    name: floodai-backend
+    env: node
+    region: oregon
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 18.20.0
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ML_API_URL
+        fromService:
+          type: web
+          name: floodai-ai
+          property: host
+      - key: INTERNAL_SERVICE_SECRET
+        fromService:
+          type: web
+          name: floodai-ai
+          envVarKey: INTERNAL_SERVICE_SECRET
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: floodai-frontend
+          property: url
+      - key: GROQ_API_KEY2
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: alerts@floodai.org
+      - key: BREVO_SENDER_NAME
+        value: FloodAI Threat Intelligence
+      - key: FIREBASE_PROJECT_ID
+        value: floodai-24a0f
+      - key: FIREBASE_SERVER_KEY
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+
+  # -------------------------------------------------------------------
+  # 3. Frontend Static Web Application
+  # -------------------------------------------------------------------
+  - type: web
+    name: floodai-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: echo "Static assets ready for deployment"
+    staticPublishPath: .
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin

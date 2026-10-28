@@ -1,0 +1,30 @@
+# =====================================================================
+# FloodAI — Production .dockerignore
+# =====================================================================
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.env
+atlas-credentials.env
+FIREBASE.JSON
+firebase-adminsdk*.json
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+venv/
+.venv/
+
+JVH
+originalflood-ai-project/
+docs/
+.github/

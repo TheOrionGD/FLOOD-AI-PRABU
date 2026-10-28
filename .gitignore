@@ -1,0 +1,85 @@
+# =====================================================================
+# FloodAI — Production .gitignore
+# Strict Secret Management & Clean Repository Maintenance
+# =====================================================================
+
+# Environment variables & secrets (NEVER COMMIT POPULATED CREDENTIALS)
+.env
+.env.*
+!.env.example
+*.env
+atlas-credentials.env
+FIREBASE.JSON
+firebase-adminsdk*.json
+service-account*.json
+*.pem
+*.key
+*.pfx
+*.p12
+*.cert
+
+# Node.js dependencies & caches
+node_modules/
+jspm_packages/
+.npm
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python & ML Model artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Operating System & IDEs
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary scratch & debug files
+JVH
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Monolithic / Unused Backup Archive
+originalflood-ai-project/

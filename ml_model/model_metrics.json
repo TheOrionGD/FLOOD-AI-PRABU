@@ -1,0 +1,77 @@
+{
+  "accuracy": 0.8345,
+  "precision": 0.7212,
+  "recall": 0.7528,
+  "f1_score": 0.7367,
+  "roc_auc": 0.9011,
+  "confusion_matrix": [
+    [
+      1206,
+      179
+    ],
+    [
+      152,
+      463
+    ]
+  ],
+  "feature_importances": [
+    {
+      "feature": "rainfall_mm",
+      "importance": 0.2012
+    },
+    {
+      "feature": "soil_moisture_pct",
+      "importance": 0.1371
+    },
+    {
+      "feature": "reservoir_level_pct",
+      "importance": 0.0942
+    },
+    {
+      "feature": "drainage_score",
+      "importance": 0.0841
+    },
+    {
+      "feature": "river_level_m",
+      "importance": 0.0813
+    },
+    {
+      "feature": "elevation_m",
+      "importance": 0.0762
+    },
+    {
+      "feature": "distance_from_coast_km",
+      "importance": 0.0731
+    },
+    {
+      "feature": "humidity_pct",
+      "importance": 0.0497
+    },
+    {
+      "feature": "forest_cover_pct",
+      "importance": 0.0492
+    },
+    {
+      "feature": "wind_speed_kmh",
+      "importance": 0.0343
+    },
+    {
+      "feature": "sea_level_m",
+      "importance": 0.0339
+    },
+    {
+      "feature": "temperature_c",
+      "importance": 0.0306
+    },
+    {
+      "feature": "population_density",
+      "importance": 0.0286
+    },
+    {
+      "feature": "cyclone",
+      "importance": 0.0265
+    }
+  ],
+  "training_rows": 8000,
+  "test_rows": 2000
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060B18"/>
+      <stop offset="100%" stop-color="#0D1626"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#33C7FF"/>
+      <stop offset="50%" stop-color="#1FE0A8"/>
+      <stop offset="100%" stop-color="#B18CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)" stroke="rgba(51,199,255,0.3)" stroke-width="4"/>
+  <circle cx="96" cy="96" r="60" fill="none" stroke="rgba(51,199,255,0.15)" stroke-width="2"/>
+  <circle cx="96" cy="96" r="38" fill="none" stroke="rgba(31,224,168,0.2)" stroke-width="2"/>
+  <path d="M48 116 c12 0 12-16 24-16 s12 16 24 16 s12-16 24-16 s12 16 24 16" fill="none" stroke="url(#wave)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 136 c12 0 12-16 24-16 s12 16 24 16 s12-16 24-16 s12 16 24 16" fill="none" stroke="url(#wave)" stroke-width="8" stroke-linecap="round" stroke-opacity="0.6"/>
+  <circle cx="96" cy="62" r="10" fill="#33C7FF"/>
+  <line x1="96" y1="42" x2="96" y2="48" stroke="#33C7FF" stroke-width="4" stroke-linecap="round"/>
+</svg>
