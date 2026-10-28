@@ -3,6 +3,7 @@
  */
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 console.log('==================================================================');
 console.log('STARTING LIGHT THEME PARTICLE ENGINE VERIFICATION SUITE');
@@ -88,7 +89,7 @@ const mockCtx = {
 };
 
 // Evaluate particleService.js in this sandbox
-const code = fs.readFileSync('frontend/js/services/particleService.js', 'utf8');
+const code = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/services/particleService.js'), 'utf8');
 eval(code);
 
 // Test 1: Light Theme Detection

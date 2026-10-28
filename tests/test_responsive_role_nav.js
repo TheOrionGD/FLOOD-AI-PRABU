@@ -15,7 +15,7 @@ console.log('STARTING RESPONSIVE NAVIGATION & ROLE AUTO-CONFIGURATION TEST SUITE
 console.log('==================================================================');
 
 // 1. Verify CSS rules in glass.css
-const glassCss = fs.readFileSync(path.join(__dirname, 'frontend/styles/glass.css'), 'utf-8');
+const glassCss = fs.readFileSync(path.join(__dirname, '..', 'frontend/styles/glass.css'), 'utf-8');
 
 // Desktop rules (> 900px)
 assert(glassCss.includes('@media (min-width: 901px)'), 'glass.css must contain desktop breakpoint > 900px');
@@ -37,7 +37,7 @@ assert(glassCss.includes('.settings-category-nav'), 'glass.css must define .sett
 console.log('[PASS] Settings screen responsive single-column & scrollable category tab classes defined');
 
 // 2. Verify shell.js role functions
-const shellJs = fs.readFileSync(path.join(__dirname, 'frontend/js/shell.js'), 'utf-8');
+const shellJs = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/shell.js'), 'utf-8');
 
 assert(shellJs.includes('function getRoleHomeScreen(role)'), 'shell.js must define getRoleHomeScreen');
 assert(shellJs.includes("if (role === 'admin') return 'admin-ops';"), 'Admin must map to admin-ops');
@@ -53,13 +53,13 @@ assert(shellJs.includes("autoConfigureRoleScreens('resident')"), 'Mobile drawer 
 console.log('[PASS] Mobile drawer includes 1-click role switcher for Admin, Analyst, and Resident');
 
 // 4. Verify settingsView.js responsive classes
-const settingsJs = fs.readFileSync(path.join(__dirname, 'frontend/js/views/settingsView.js'), 'utf-8');
+const settingsJs = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/views/settingsView.js'), 'utf-8');
 assert(settingsJs.includes('class="settings-layout-grid"'), 'settingsView.js must use settings-layout-grid class');
 assert(settingsJs.includes('class="glass-card elevated settings-category-nav"'), 'settingsView.js must use settings-category-nav class');
 console.log('[PASS] settingsView.js properly attaches responsive classes');
 
 // 5. Verify profileView.js role selection workspace card
-const profileJs = fs.readFileSync(path.join(__dirname, 'frontend/js/views/profileView.js'), 'utf-8');
+const profileJs = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/views/profileView.js'), 'utf-8');
 assert(profileJs.includes('Operational Role &amp; Workspace Clearance'), 'profileView.js must include Operational Role & Workspace card');
 assert(profileJs.includes("autoConfigureRoleScreens('admin')"), 'profileView.js must support 1-click Admin role switch');
 assert(profileJs.includes("autoConfigureRoleScreens('analyst')"), 'profileView.js must support 1-click Analyst role switch');

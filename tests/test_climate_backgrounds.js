@@ -29,7 +29,7 @@ global.Image = class {
 };
 
 // Require or evaluate service
-const serviceCode = fs.readFileSync(path.join(__dirname, "frontend/js/services/climateBackgroundService.js"), "utf8");
+const serviceCode = fs.readFileSync(path.join(__dirname, "..", "frontend/js/services/climateBackgroundService.js"), "utf8");
 eval(serviceCode);
 const ClimateBg = global.window.ClimateBackgroundService;
 
@@ -62,7 +62,7 @@ expectedProfiles.forEach(id => {
   test(`Asset exists on disk for profile: ${id}`, () => {
     const profile = ClimateBg.registry[id];
     assert(profile, `Profile ${id} should be registered in ClimateBackgroundService`);
-    const fullPath = path.join(__dirname, "frontend", profile.imagePath);
+    const fullPath = path.join(__dirname, "..", "frontend", profile.imagePath);
     assert(fs.existsSync(fullPath), `Image file must exist at ${fullPath}`);
     const stats = fs.statSync(fullPath);
     assert(stats.size > 100000, `Image file size (${stats.size} bytes) should be a valid high-res photo`);

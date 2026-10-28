@@ -48,7 +48,7 @@ async function run() {
   // 1. Launch Python ML Microservice
   console.log("\n[1/4] Starting Python ML Microservice...");
   const mlProcess = spawn("python", ["predict_api.py"], {
-    cwd: path.join(__dirname, "ml_model"),
+    cwd: path.join(__dirname, "..", "ml_model"),
     shell: true,
     stdio: "pipe",
   });
@@ -73,7 +73,7 @@ async function run() {
   // 2. Launch Node.js Backend API
   console.log("\n[2/4] Starting Node.js Express Backend API...");
   const backendProcess = spawn("node", ["server.js"], {
-    cwd: path.join(__dirname, "backend"),
+    cwd: path.join(__dirname, "..", "backend"),
     shell: true,
     stdio: "pipe",
   });

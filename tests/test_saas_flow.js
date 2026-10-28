@@ -3,8 +3,9 @@
  * Verification of SaaS endpoints, RBAC protection, and Admin/Analyst/Resident APIs.
  */
 
-const axios = require('./backend/node_modules/axios');
-const jwt = require('./backend/node_modules/jsonwebtoken');
+const path = require('path');
+const axios = require(path.join(__dirname, '../backend/node_modules/axios'));
+const jwt = require(path.join(__dirname, '../backend/node_modules/jsonwebtoken'));
 
 const API_BASE = 'http://localhost:5000/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'floodai_threat_intelligence_super_secret_key_2026';

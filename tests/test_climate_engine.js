@@ -30,7 +30,8 @@ global.localStorage = {
   clear() { this._store = {}; }
 };
 
-const ClimateStateResolver = require("./frontend/js/services/climateResolver");
+const path = require("path");
+const ClimateStateResolver = require(path.resolve(__dirname, "..", "frontend/js/services/climateResolver"));
 
 let passed = 0;
 let failed = 0;
