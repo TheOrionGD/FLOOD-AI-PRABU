@@ -115,17 +115,15 @@ FloodAI enforces a **Zero-Secret Commit Policy**:
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Execution & Viewing Options
 
-### Prerequisites
-- Node.js >= 18.x (v20 LTS recommended)
-- Python >= 3.9 (v3.10 recommended)
-- MongoDB instance (Atlas or local)
+### Option A: Localhost Execution (Full-Stack System)
+To run the full stack locally (Frontend on `:3000`, Backend API on `:5000`, Python ML on `:8000`):
 
-### 1. Clone & Configure Environment
+#### 1. Clone & Configure Environment
 ```bash
-git clone https://github.com/your-org/flood-ai-project.git
-cd flood-ai-project
+git clone https://github.com/TheOrionGD/FLOOD-AI-PRABU.git
+cd FLOOD-AI-PRABU
 
 # Copy environment templates
 cp .env.example .env
@@ -133,7 +131,7 @@ cp backend/.env.example backend/.env
 cp ml_model/.env.example ml_model/.env
 ```
 
-### 2. Launch Services (Windows Quick Start)
+#### 2. Launch Services (Windows 1-Click Launcher)
 ```cmd
 run_system.bat
 ```
@@ -142,7 +140,7 @@ To shut down all background services:
 stop_system.bat
 ```
 
-### 3. Manual Service Launch
+#### 3. Manual Local Service Launch
 ```bash
 # Terminal 1: Python ML Microservice
 cd ml_model
@@ -158,6 +156,15 @@ npm run dev # Runs on http://localhost:5000
 cd frontend
 python -m http.server 3000 # Visit http://localhost:3000
 ```
+
+---
+
+### Option B: Client-Side Viewing (GitHub Pages)
+For viewing the client-side user interface without local server installation, the frontend is deployed as a static client preview via GitHub Pages:
+
+👉 **[Launch FloodAI Client View (GitHub Pages)](https://theoriongd.github.io/FLOOD-AI-PRABU/)**
+
+> **Note**: GitHub Pages serves the client-side SPA for viewing and interface exploration. Real-time inference and backend telemetry operate when connecting to the local server at `http://localhost:5000`.
 
 ---
 
