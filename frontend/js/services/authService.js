@@ -474,6 +474,17 @@ async function handleLogin(e) {
 
   try {
     const res = await api('/auth/login', 'POST', { email, password }, false);
+
+    // Synchronize client session with Firebase Auth SDK if loaded
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+      } catch (fbErr) {
+        console.debug('[Firebase:ClientSync]', fbErr.code || fbErr.message);
+      }
+    }
+
     completeAuthSuccess(res, `Welcome back, ${res.user.displayName}!`);
   } catch (err) {
     toast(`Login error: ${err.message}`);
@@ -512,6 +523,18 @@ async function handleRegister(e) {
     } else {
       // Standard registration
       res = await api('/auth/register', 'POST', { displayName, email, phone: phone || null, password }, false);
+
+      // Synchronize new account registration with Firebase Auth SDK
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        try {
+          if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+          await firebase.auth().createUserWithEmailAndPassword(email, password);
+        } catch (fbErr) {
+          if (fbErr.code !== 'auth/email-already-in-use') {
+            console.debug('[Firebase:RegisterSync]', fbErr.code || fbErr.message);
+          }
+        }
+      }
     }
 
     completeAuthSuccess(res, `Account created! Welcome, ${displayName}.`);
