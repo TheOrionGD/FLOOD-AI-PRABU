@@ -2226,7 +2226,7 @@ html.light .mobile-drawer-content {
     display: none !important;
   }
   .saas-sidebar {
-    display: none !important;
+    display: flex !important;
   }
   .saas-topbar {
     display: flex !important;

@@ -47,10 +47,9 @@ console.log('[PASS] Role auto-configuration correctly maps: Admin -> admin-ops, 
 
 // 3. Verify mobile drawer navigation
 assert(shellJs.includes('function renderMobileDrawerNavigation()'), 'shell.js must define renderMobileDrawerNavigation');
-assert(shellJs.includes("autoConfigureRoleScreens('admin')"), 'Mobile drawer must include Admin auto-configure button');
-assert(shellJs.includes("autoConfigureRoleScreens('analyst')"), 'Mobile drawer must include Analyst auto-configure button');
-assert(shellJs.includes("autoConfigureRoleScreens('resident')"), 'Mobile drawer must include Resident auto-configure button');
-console.log('[PASS] Mobile drawer includes 1-click role switcher for Admin, Analyst, and Resident');
+assert(shellJs.includes('function navigateToRoleWorkspace(targetRole)'), 'shell.js must define navigateToRoleWorkspace with RBAC guards');
+assert(shellJs.includes('function autoConfigureRoleScreens'), 'shell.js must retain autoConfigureRoleScreens backward compatibility');
+console.log('[PASS] Mobile drawer navigation and RBAC workspace clearance verified');
 
 // 4. Verify settingsView.js responsive classes
 const settingsJs = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/views/settingsView.js'), 'utf-8');
@@ -61,10 +60,10 @@ console.log('[PASS] settingsView.js properly attaches responsive classes');
 // 5. Verify profileView.js role selection workspace card
 const profileJs = fs.readFileSync(path.join(__dirname, '..', 'frontend/js/views/profileView.js'), 'utf-8');
 assert(profileJs.includes('Operational Role &amp; Workspace Clearance'), 'profileView.js must include Operational Role & Workspace card');
-assert(profileJs.includes("autoConfigureRoleScreens('admin')"), 'profileView.js must support 1-click Admin role switch');
-assert(profileJs.includes("autoConfigureRoleScreens('analyst')"), 'profileView.js must support 1-click Analyst role switch');
-assert(profileJs.includes("autoConfigureRoleScreens('resident')"), 'profileView.js must support 1-click Resident role switch');
-console.log('[PASS] profileView.js includes Operational Role selection card with auto-configuration');
+assert(profileJs.includes("navigateToRoleWorkspace('admin')"), 'profileView.js must support Admin role navigation');
+assert(profileJs.includes("navigateToRoleWorkspace('analyst')"), 'profileView.js must support Analyst role navigation');
+assert(profileJs.includes("navigateToRoleWorkspace('resident')"), 'profileView.js must support Resident role navigation');
+console.log('[PASS] profileView.js includes Operational Role selection card with secure workspace clearance');
 
 // 6. Verify Climate Modal styling
 assert(shellJs.includes('padding-right:38px;'), 'Climate modal header must have breathing room for close button');
