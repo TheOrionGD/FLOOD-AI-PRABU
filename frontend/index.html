@@ -1221,12 +1221,15 @@ html.light #map{ background:#dfe9f5; }
 <div id="app" style="position:relative; z-index:1;"></div>
 <div class="toast" id="toast"></div>
 
-<!-- FloodAI Modular Architecture v2.5 -->
+<!-- FloodAI Modular Architecture v2.8 -->
 <!-- 1. Core Config, Reactive State, Utilities & API Layer -->
-<script src="js/config.js?v=2.7.1"></script>
-<script src="js/state.js?v=2.7.1"></script>
-<script src="js/utils.js?v=2.5.0"></script>
-<script src="js/api.js?v=2.5.0"></script>
+<script src="js/config.js?v=2.8.0"></script>
+<script src="js/state.js?v=2.8.0"></script>
+<script src="js/utils.js?v=2.8.0"></script>
+<script src="js/api.js?v=2.8.0"></script>
+
+<!-- 1b. Client-Side Router (History API — URL persistence & popstate) -->
+<script src="js/router.js?v=2.8.0"></script>
 
 <!-- 2. Centralized Services -->
 <script src="js/services/audioService.js?v=2.7.4"></script>
@@ -1237,7 +1240,7 @@ html.light #map{ background:#dfe9f5; }
 <script src="js/services/atmosphereController.js?v=2.6.0"></script>
 <script src="js/services/climateBackgroundService.js?v=2.6.0"></script>
 <script src="js/services/notificationService.js?v=2.7.2"></script>
-<script src="js/services/authService.js?v=2.6.0"></script>
+<script src="js/services/authService.js?v=2.8.0"></script>
 <script src="js/services/i18nService.js?v=2.6.0"></script>
 
 <!-- 3. Specialized Page Views -->
@@ -1288,7 +1291,7 @@ html.light #map{ background:#dfe9f5; }
 <script src="js/views/settingsView.js?v=2.6.0"></script>
 
 <!-- 4. App Shell & Application Bootstrap Orchestrator -->
-<script src="js/shell.js?v=2.7.1"></script>
-<script src="js/app.js?v=2.6.0"></script>
+<script src="js/shell.js?v=2.8.0"></script>
+<script src="js/app.js?v=2.8.0"></script>
 </body>
 </html>

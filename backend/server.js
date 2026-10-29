@@ -144,7 +144,36 @@ app.get("/favicon.ico", (req, res) => {
   res.status(204).end();
 });
 
-// 404 Handler
+// SPA Client-Side Route Fallback
+// Serve index.html for known client-side routes so that refreshing /admin,
+// /resident, /analyst (and their sub-paths) works correctly.
+// Only applies when the backend is also serving the frontend static files.
+const FRONTEND_DIR = path.join(__dirname, "..", "frontend");
+const SPA_ROUTE_PREFIXES = [
+  "/admin", "/analyst", "/resident", "/home", "/login", "/signup",
+  "/onboarding", "/landing", "/portal", "/command", "/map", "/predict",
+  "/weather", "/dashboard", "/analytics", "/records", "/alerts",
+  "/profile", "/settings", "/terms", "/privacy",
+];
+
+app.use((req, res, next) => {
+  // Only intercept GET requests for non-API, non-asset paths
+  if (req.method !== "GET") return next();
+  if (req.path.startsWith("/api/")) return next();
+
+  const isSpaRoute = req.path === "/" ||
+    SPA_ROUTE_PREFIXES.some((prefix) => req.path === prefix || req.path.startsWith(prefix + "/"));
+
+  if (isSpaRoute) {
+    const indexPath = path.join(FRONTEND_DIR, "index.html");
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+  }
+  next();
+});
+
+// 404 Handler (API endpoints only at this point)
 app.use((req, res) => {
   res.status(404).json({ error: "Endpoint not found", path: req.originalUrl });
 });

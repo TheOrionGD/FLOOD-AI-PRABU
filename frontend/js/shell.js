@@ -302,6 +302,7 @@ function renderShell() {
   const app = document.getElementById('app');
   if (!app) return;
 
+  const isAuthenticated = Boolean(state.user && state.token);
   const role = state.user?.role || 'resident';
 
   const policy = (typeof ROUTE_POLICIES !== 'undefined' && ROUTE_POLICIES[state.page])
@@ -1092,27 +1093,52 @@ function closeMobileMenu() {
 /* ================= 4. ROUTER & PAGE RENDERING ================= */
 let _pageTransitionTimer = null;
 
-function goTo(page) {
+/**
+ * goTo — Navigate to an internal page ID.
+ * @param {string} page         - Internal page identifier (e.g. 'admin-ops')
+ * @param {boolean} _skipHistory - Internal flag; set true when called from popstate
+ *                                 handler to avoid double-pushing the same URL.
+ */
+function goTo(page, _skipHistory) {
   const check = checkRouteAccess(page);
-  
+  let targetPage = page;
+
   if (!check.allowed) {
     if (check.reason === 'unauthenticated') {
       state.redirectAfterLogin = page;
       if (typeof toast === 'function' && page !== 'login') {
         toast(`Authentication required: Please sign in to access ${check.policy?.title || 'this screen'}.`);
       }
-      state.page = 'login';
+      targetPage = 'login';
+      state.page = targetPage;
+      if (!_skipHistory && typeof pushRoute === 'function') pushRoute(targetPage);
       openAuthModal('login', page);
     } else if (check.reason === 'unauthorized') {
       if (typeof toast === 'function') {
         toast(`Access restricted: ${check.message}`);
       }
-      state.page = page;
+      // Redirect unauthorized users to their own role home rather than
+      // showing the requested (restricted) page.
+      const userRole = state.user?.role || 'resident';
+      targetPage = (typeof getRoleHomeScreen === 'function')
+        ? getRoleHomeScreen(userRole)
+        : (userRole === 'admin' ? 'admin-ops' : (userRole === 'analyst' ? 'analyst-predict' : 'home'));
+      state.page = targetPage;
+      if (!_skipHistory && typeof pushRoute === 'function') pushRoute(targetPage);
+    } else if (check.reason === 'expired') {
+      targetPage = 'login';
+      state.page = targetPage;
+      if (!_skipHistory && typeof pushRoute === 'function') pushRoute(targetPage);
+      if (typeof openAuthModal === 'function') openAuthModal('login');
     } else {
-      state.page = 'login';
+      targetPage = 'login';
+      state.page = targetPage;
+      if (!_skipHistory && typeof pushRoute === 'function') pushRoute(targetPage);
     }
   } else {
-    state.page = page;
+    state.page = targetPage;
+    // Push new URL to browser history (only when not triggered from popstate)
+    if (!_skipHistory && typeof pushRoute === 'function') pushRoute(targetPage);
   }
 
   if (typeof AppEvents !== 'undefined') {

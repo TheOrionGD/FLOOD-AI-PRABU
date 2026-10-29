@@ -13,7 +13,7 @@
     "test:ml": "python ml_model/test_ml_service.py",
     "audit:secrets": "node scripts/validation/validate_secrets.js",
     "start:backend": "npm --prefix backend start",
-    "start:frontend": "python -m http.server 3000 --directory frontend",
+    "start:frontend": "python scripts/serve_frontend.py 3000",
     "start:ml": "cd ml_model && python predict_api.py"
   },
   "keywords": [
