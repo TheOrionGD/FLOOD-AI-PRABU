@@ -17,12 +17,17 @@ let _activeSimScenario = 'coastal_surge';
 let _activeSimSeverity = 'Warning';
 let _currentSimulationId = null;
 let _simHistory = [];
+let _simUnsubscribeLocation = null;
+
+let _simDiscoveredZones = [];
+let _simTargetZoneId = sessionStorage.getItem('floodai_sim_target_zone_id') || null;
+let _simTargetZoneName = sessionStorage.getItem('floodai_sim_target_zone_name') || null;
 
 const SIM_SCENARIOS = {
   coastal_surge: {
     id: 'coastal_surge',
     name: 'Coastal Storm Surge & Inundation',
-    category: 'coastal_inundation',
+    category: 'coastal_surge',
     badge: 'COASTAL TIDAL SURGE',
     icon: '🌊',
     defaultSeverity: 'Critical',
@@ -37,17 +42,17 @@ const SIM_SCENARIOS = {
       'Do not attempt vehicular transit across flooded causeways or coastal roads.'
     ]
   },
-  heavy_rainfall: {
-    id: 'heavy_rainfall',
-    name: 'Severe Pluvial Downpour / Heavy Rainfall',
-    category: 'heavy_rainfall',
+  rainfall_escalation: {
+    id: 'rainfall_escalation',
+    name: 'Simulated Rainfall Escalation Downpour',
+    category: 'rainfall_escalation',
     badge: 'EXTREME PLUVIAL INUNDATION',
     icon: '⛈️',
     defaultSeverity: 'Warning',
-    probabilityPct: 83.2,
-    rainfall: '165 mm / 6h',
+    probabilityPct: 86.4,
+    rainfall: '165 mm / 6h Cloudburst',
     tideSurge: 'Urban Drainage Surcharge',
-    description: 'Intense atmospheric convective downpour exceeding municipal storm drain capacity. Rapid street-level flash flooding in urban sub-basins.',
+    description: 'Sudden convective atmospheric cloudburst exceeding municipal drainage capacity by 320%. Rapid street-level flash flooding in low-lying sub-basins.',
     directives: [
       'Move essential medicines, drinking water, and valuables to upper storeys.',
       'Stay indoors; avoid storm culverts, open drains, and subterranean basements.',
@@ -55,40 +60,93 @@ const SIM_SCENARIOS = {
       'Monitor live FloodAI radar and siren audio broadcasts.'
     ]
   },
-  rising_water_level: {
-    id: 'rising_water_level',
-    name: 'Riverine Floodplain / Rising Water Level',
-    category: 'rising_water_level',
-    badge: 'RIVERINE FLOODPLAIN DISCHARGE',
-    icon: '⚠️',
-    defaultSeverity: 'Watch',
-    probabilityPct: 72.8,
-    rainfall: '95 mm / 24h',
-    tideSurge: 'River Gauge: Above Warning Mark (+4.6m)',
-    description: 'Upstream reservoir spillway discharge and runoff elevating river stages past warning thresholds. Low-lying riparian buffer zones at risk.',
+  water_level_rise: {
+    id: 'water_level_rise',
+    name: 'Coastal Water-Level & Tidal Lock Rise',
+    category: 'water_level_rise',
+    badge: 'TIDAL LOCK BACKFLOW',
+    icon: '📈',
+    defaultSeverity: 'Warning',
+    probabilityPct: 78.5,
+    rainfall: '75 mm / 24h',
+    tideSurge: '+2.4m Spring High Tide Crest',
+    description: 'Spring astronomical high tide locking coastal discharge sluices. Seawater backflowing into estuarine canals and low-gradient drainage corridors.',
     directives: [
-      'Residents within 500m of riverbanks must prepare for preemptive evacuation.',
-      'Untether livestock and relocate domestic vehicles to elevated terrain.',
-      'Avoid standing or driving near bridge abutments and retaining walls.',
-      'Keep mobile phones fully charged and emergency radios on standby.'
+      'Deploy sandbags along canal perimeter retaining walls.',
+      'Secure marine mooring lines and ground-level electrical fixtures.',
+      'Relocate vehicles parked in underground parking facilities to elevated terrain.',
+      'Stay clear of tidal locks, sea outfalls, and canal banks.'
     ]
   },
   official_warning: {
     id: 'official_warning',
     name: 'Official Civil Defense Flood Warning',
     category: 'official_warning',
-    badge: 'OFFICIAL DISASTER AUTHORITY ADVISORY',
+    badge: 'DISASTER AUTHORITY RED ALERT',
     icon: '📢',
-    defaultSeverity: 'Advisory',
-    probabilityPct: 65.0,
-    rainfall: 'Synoptic Alert Forecast',
+    defaultSeverity: 'Critical',
+    probabilityPct: 89.0,
+    rainfall: 'Synoptic Red Alert Bulletin',
     tideSurge: 'IMD / CWC Bulletin Synchronized',
-    description: 'Official flood watch issued by regional disaster management authorities based on hydrometric river forecasts and depression trajectories.',
+    description: 'Official flood warning issued by regional disaster management authorities based on hydrometric river forecasts and depression trajectories.',
     directives: [
-      'Review family emergency evacuation plans and designated community shelters.',
-      'Ensure 72-hour emergency survival kits contain non-perishable food and water.',
+      'Review household emergency evacuation plans and designated community shelters.',
+      'Ensure 72-hour emergency survival kits contain non-perishable food and drinking water.',
       'Verify that SMS and push notification alerts remain unmuted on mobile devices.',
       'Check on elderly neighbors and vulnerable household members.'
+    ]
+  },
+  flood_propagation: {
+    id: 'flood_propagation',
+    name: 'Coastal Flood Propagation Scenario',
+    category: 'flood_propagation',
+    badge: 'HYDRODYNAMIC PROPAGATION CASCADE',
+    icon: '🔄',
+    defaultSeverity: 'Warning',
+    probabilityPct: 84.0,
+    rainfall: 'Catchment Runoff Surge',
+    tideSurge: 'Convective Estuary Wave Front (2.5h – 4.0h Lead)',
+    description: 'Upstream tidal surge traveling down connected hydrodynamic estuary corridors toward downstream coastal settlements. Estimated arrival window calculated via Saint-Venant 1D model.',
+    directives: [
+      'Preemptive vertical evacuation window active (estimated lead time: 2.5 - 4.0 hours).',
+      'Clear surface drainage conduits and prepare emergency flood barriers.',
+      'Keep mobile devices charged and monitoring the active propagation wave front.',
+      'Follow designated evacuation corridors to identified regional high-ground shelters.'
+    ]
+  },
+  resident_exposure: {
+    id: 'resident_exposure',
+    name: 'Resident Direct Exposure Event',
+    category: 'resident_exposure',
+    badge: 'DIRECT INUNDATION RISK AT COORDINATES',
+    icon: '🚨',
+    defaultSeverity: 'Critical',
+    probabilityPct: 94.2,
+    rainfall: 'Direct Coordinate Flash Inundation',
+    tideSurge: 'Terrain Elevation Breached (>1.2m depth)',
+    description: 'Water surface elevation exceeding local ground elevation at resident coordinates. Immediate low-lying living space inundation projected.',
+    directives: [
+      'Commence immediate vertical relocation to reinforced concrete structures >10m MSL.',
+      'Disconnect main electrical breaker and gas cylinders immediately.',
+      'Do not attempt vehicular transit across flooded causeways or underpasses.',
+      'Keep browser tab siren active and emergency whistle on hand.'
+    ]
+  },
+  live_telemetry: {
+    id: 'live_telemetry',
+    name: 'Live Real Event Snapshot',
+    category: 'live_telemetry',
+    badge: 'SYNCHRONIZED REAL TELEMETRY SNAPSHOT',
+    icon: '🛰️',
+    defaultSeverity: 'Watch',
+    probabilityPct: 68.0,
+    rainfall: 'Live Weather Telemetry Ingestion',
+    tideSurge: 'Open-Meteo & OpenWeather Consensus',
+    description: 'Simulates the notification pipeline consuming live real-time observation inputs currently measured at the target coastal monitoring zone.',
+    directives: [
+      'Continuous real-time sensor observation active across multi-basin radar.',
+      'Multi-channel Web Push alerts armed and synchronized with live data feeds.',
+      'Verify emergency contact details in resident profile.'
     ]
   }
 };
@@ -229,10 +287,23 @@ async function renderResidentSimulation(root) {
                 <div style="font-size:10.5px; color:var(--text-2); text-transform:uppercase; font-family:var(--font-mono);">
                   Test Target Location ${isGps ? '📍 (GPS)' : '🏙️ (Sector)'}
                 </div>
-                <div style="font-size:13px; font-weight:600; margin-top:4px; color:var(--cyber);">
+                <div id="simResidentLocDisplay" style="font-size:13px; font-weight:600; margin-top:4px; color:var(--cyber);">
                   ${locLabel}
                 </div>
               </div>
+            </div>
+
+            <!-- Dynamic Target Coastal Monitoring Zone Selector (Discovered within 500km) -->
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--panel-border); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; color:var(--text-2); text-transform:uppercase; font-family:var(--font-mono);">
+                  Target Coastal Monitoring Zone (500 km Radius)
+                </span>
+                <span class="badge badge-info" style="font-size:9.5px; padding:1px 6px;">DISCOVERED SENSORS</span>
+              </div>
+              <select id="simTargetZoneSelect" onchange="onSelectSimTargetZone(this.value)" class="glass-input" style="width:100%; padding:7px 10px; font-size:12px; border-radius:8px; background:rgba(0,0,0,0.4); color:var(--text-0); cursor:pointer;">
+                <option value="">${locLabel} (Immediate Resident Sector)</option>
+              </select>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
@@ -534,9 +605,139 @@ async function renderResidentSimulation(root) {
     </div>
   `;
 
+  // Load dynamically discovered coastal zones within 500km radius for simulation target selection
+  loadDiscoveredZonesForSimulation(resolvedLat, resolvedLon);
+
+  // Clean up previous event subscription
+  if (typeof _simUnsubscribeLocation === 'function') {
+    _simUnsubscribeLocation();
+    _simUnsubscribeLocation = null;
+  }
+
+  // Reactive listener: when user coordinates or sector changes, update profile display and target coastal zones
+  if (typeof AppEvents !== 'undefined') {
+    _simUnsubscribeLocation = AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, (loc) => {
+      const activeSelect = document.getElementById('simTargetZoneSelect');
+      if (activeSelect && typeof state !== 'undefined' && state.page === 'resident-simulation') {
+        const newLat = loc?.coords?.lat ?? state.userLocation?.lat ?? 13.0827;
+        const newLon = loc?.coords?.lon ?? state.userLocation?.lon ?? 80.2707;
+        const place = loc?.coords?.cityName || loc?.coords?.district || `${newLat.toFixed(2)}°, ${newLon.toFixed(2)}°`;
+        const disp = document.getElementById('simResidentLocDisplay');
+        if (disp) disp.textContent = place;
+        loadDiscoveredZonesForSimulation(newLat, newLon);
+      }
+    });
+  }
+
   // Auto-load history if authenticated
   if (isAuthenticated) {
     loadSimHistory();
+  }
+
+  // Immediately render the reactive alert preview for the resident
+  setTimeout(() => {
+    updateSimAlertPreview(false);
+  }, 10);
+}
+
+/**
+ * Reactively updates the resident-facing alert preview card to immediately reflect
+ * selected scenarios, severity levels, target zones, and simulation dispatch results.
+ */
+function updateSimAlertPreview(isDispatched = false, dispatchData = null) {
+  const previewCard = document.getElementById('simAlertPreviewCard');
+  if (!previewCard) return;
+  previewCard.style.display = 'block';
+
+  const scenario = SIM_SCENARIOS[_activeSimScenario] || SIM_SCENARIOS.coastal_surge;
+  const severity = _activeSimSeverity || scenario.defaultSeverity;
+  
+  const activeZone = _simDiscoveredZones.find(z => z.zoneId === _simTargetZoneId);
+  const locationName = activeZone ? activeZone.name : (_simTargetZoneName || (state.selectedDistrict ? `${state.selectedDistrict} Sector` : 'Resident Local Sector'));
+
+  const sevBadge = document.getElementById('previewSeverityBadge');
+  if (sevBadge) {
+    const isCritical = severity === 'Critical' || severity === 'Very High';
+    sevBadge.textContent = `${severity.toUpperCase()} ALERT ${isDispatched ? '(DISPATCHED)' : '(SIMULATION PREVIEW)'}`;
+    sevBadge.className = `badge ${isCritical ? 'badge-danger' : (severity === 'Warning' ? 'badge-warning' : 'badge-info')}`;
+  }
+
+  const pTitle = document.getElementById('previewTitle');
+  if (pTitle) {
+    pTitle.textContent = dispatchData?.alertTitle || `🚨 [SIMULATED] ${scenario.name}`;
+  }
+
+  const pLoc = document.getElementById('previewLocation');
+  if (pLoc) {
+    const timeStr = dispatchData?.timestamp ? new Date(dispatchData.timestamp).toLocaleTimeString() : 'Live Simulation Preview';
+    pLoc.textContent = `Target Sector: ${locationName} • Time: ${timeStr} • Model Risk: ${scenario.probabilityPct}%`;
+  }
+
+  const pBody = document.getElementById('previewBody');
+  if (pBody) {
+    pBody.textContent = dispatchData?.alertBody || `${scenario.description} Modeled rainfall: ${scenario.rainfall} • Tidal swell: ${scenario.tideSurge}.`;
+  }
+
+  const pDirectives = document.getElementById('previewDirectives');
+  if (pDirectives) {
+    const dirs = dispatchData?.directives || scenario.directives || [];
+    pDirectives.innerHTML = dirs.map(d => `<li>${escapeHtml(d)}</li>`).join('');
+  }
+
+  const ackBtn = document.getElementById('simAcknowledgeBtn');
+  if (ackBtn) {
+    if (isDispatched) {
+      ackBtn.style.display = 'inline-block';
+      ackBtn.disabled = false;
+      ackBtn.textContent = '✓ Acknowledge Alert';
+      ackBtn.className = 'glass-btn btn-success';
+    } else {
+      ackBtn.style.display = 'none';
+    }
+  }
+
+  if (typeof AppEvents !== 'undefined') {
+    AppEvents.emit(AppEvents.EVENTS.SIMULATION_PREVIEW_CHANGED, {
+      scenario: scenario.id,
+      severity,
+      location: locationName,
+      isDispatched
+    });
+  }
+}
+
+window.onSelectSimTargetZone = function(zoneId) {
+  _simTargetZoneId = zoneId;
+  const match = _simDiscoveredZones.find(z => z.zoneId === zoneId);
+  if (match) {
+    _simTargetZoneName = match.name;
+    sessionStorage.setItem('floodai_sim_target_zone_id', zoneId);
+    sessionStorage.setItem('floodai_sim_target_zone_name', match.name);
+  }
+  updateSimAlertPreview(false);
+};
+
+async function loadDiscoveredZonesForSimulation(lat, lon) {
+  try {
+    const res = await api(`/geospatial/coastal-intelligence?lat=${lat}&lon=${lon}&radius=500`);
+    if (res && res.rankedZones && res.rankedZones.length > 0) {
+      _simDiscoveredZones = res.rankedZones;
+      const select = document.getElementById('simTargetZoneSelect');
+      if (select) {
+        select.innerHTML = _simDiscoveredZones.map(z => {
+          const isSelected = (_simTargetZoneId && _simTargetZoneId === z.zoneId) || (! _simTargetZoneId && z.distanceFromUserKm < 10);
+          return `<option value="${escapeHtml(z.zoneId)}" ${isSelected ? 'selected' : ''}>${escapeHtml(z.name)} (${z.distanceFromUserKm.toFixed(1)} km away • ${z.riskAssessment?.riskCategory || 'Normal'} Risk)</option>`;
+        }).join('');
+
+        if (!_simTargetZoneId && _simDiscoveredZones[0]) {
+          _simTargetZoneId = _simDiscoveredZones[0].zoneId;
+          _simTargetZoneName = _simDiscoveredZones[0].name;
+        }
+      }
+      updateSimAlertPreview(false);
+    }
+  } catch (err) {
+    console.warn('[Simulation:LoadZonesWarn]', err.message);
   }
 }
 
@@ -575,10 +776,12 @@ function selectSimScenario(scId) {
   if (container) {
     container.innerHTML = renderSimScenarioOptions();
   }
+  updateSimAlertPreview(false);
 }
 
 function updateSimSeverity(val) {
   _activeSimSeverity = val;
+  updateSimAlertPreview(false);
 }
 
 function promptSimConfirmation() {
@@ -668,16 +871,23 @@ async function triggerFloodSimulation() {
 
   // Step 2, 3, 4: Backend API Dispatch with Authentication
   try {
+    const activeZone = _simDiscoveredZones.find(z => z.zoneId === _simTargetZoneId);
+    const targetLocation = activeZone ? activeZone.name : (_simTargetZoneName || location);
+    const targetLat = activeZone ? activeZone.coordinates.latitude : lat;
+    const targetLon = activeZone ? activeZone.coordinates.longitude : lon;
+    const targetZoneId = activeZone ? activeZone.zoneId : (_simTargetZoneId || 'cst_local_sector');
+
     const payload = {
       scenario: scenario.id,
       severity,
       probabilityPct: scenario.probabilityPct,
-      location,
-      latitude: lat,
-      longitude: lon,
+      location: targetLocation,
+      zoneId: targetZoneId,
+      latitude: targetLat,
+      longitude: targetLon,
       channels,
       directives: scenario.directives,
-      testMessage: `[SIMULATION: ${severity.toUpperCase()}] Flood hazard detected (${scenario.probabilityPct}% modeled risk). Immediate citizen safety directives active for ${location}.`
+      testMessage: `[SIMULATION: ${severity.toUpperCase()}] Flood hazard detected in ${targetLocation} (${scenario.probabilityPct}% modeled risk). Immediate citizen safety directives active.`
     };
 
     const res = await fetch(`${API_BASE}/alerts/simulate-resident-flood`, {
@@ -773,6 +983,28 @@ async function triggerFloodSimulation() {
         overallBadge.className = 'badge badge-success';
       }
 
+      // Prepend simulation run in-memory for instant reactive UI update without page reload
+      _simHistory.unshift({
+        _id: data.simulationId,
+        createdAt: data.timestamp || new Date().toISOString(),
+        scenario: scenario.name,
+        severity: data.severity,
+        location: data.location,
+        channelsRequested: channels,
+        acknowledged: false
+      });
+      renderSimHistoryTable();
+
+      if (typeof AppEvents !== 'undefined') {
+        AppEvents.emit(AppEvents.EVENTS.SIMULATION_EXECUTED, {
+          simulationId: data.simulationId,
+          isSimulation: true,
+          scenario: scenario.name,
+          location: data.location,
+          severity: data.severity
+        });
+      }
+
       toast('🚨 Simulation alert dispatched successfully!');
       loadSimHistory();
     } else {
@@ -818,11 +1050,79 @@ async function acknowledgeSimulationAlert() {
         ackBtn.className = 'glass-btn btn-ghost';
       }
       stopSimSiren();
+
+      // Reactive in-memory update for instant feedback
+      const match = _simHistory.find(h => (h._id === _currentSimulationId || h.simulationId === _currentSimulationId));
+      if (match) {
+        match.acknowledged = true;
+        renderSimHistoryTable();
+      }
+
+      if (typeof AppEvents !== 'undefined') {
+        AppEvents.emit(AppEvents.EVENTS.SIMULATION_ACKNOWLEDGED, { simulationId: _currentSimulationId });
+      }
+
       loadSimHistory();
     }
   } catch (err) {
     toast('Acknowledgment failed: ' + err.message, 'warning');
   }
+}
+
+function renderSimHistoryTable() {
+  const container = document.getElementById('simHistoryContainer');
+  if (!container) return;
+
+  if (_simHistory.length === 0) {
+    container.innerHTML = `
+      <div style="color:var(--text-2); font-size:12px; text-align:center; padding:16px;">
+        No simulation runs recorded yet. Launch your first test alert above.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--panel-border); color:var(--text-2); font-family:var(--font-mono); font-size:11px;">
+          <th style="padding:8px 10px;">TIMESTAMP</th>
+          <th style="padding:8px 10px;">SCENARIO</th>
+          <th style="padding:8px 10px;">SEVERITY</th>
+          <th style="padding:8px 10px;">SECTOR</th>
+          <th style="padding:8px 10px;">CHANNELS</th>
+          <th style="padding:8px 10px;">STATUS</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${_simHistory.map(row => {
+          const time = new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const date = new Date(row.createdAt).toLocaleDateString();
+          const channels = row.channelsRequested?.join(', ') || 'siren, fcm';
+          const isAck = row.acknowledged;
+
+          return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+              <td style="padding:8px 10px; font-family:var(--font-mono); color:var(--text-1);">${date} ${time}</td>
+              <td style="padding:8px 10px; font-weight:600; color:var(--text-0);">${row.scenario}</td>
+              <td style="padding:8px 10px;">
+                <span class="badge ${row.severity === 'Critical' ? 'badge-danger' : 'badge-warning'}" style="font-size:10px;">
+                  ${row.severity}
+                </span>
+              </td>
+              <td style="padding:8px 10px; color:var(--text-1);">${row.location}</td>
+              <td style="padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--cyber);">${channels}</td>
+              <td style="padding:8px 10px;">
+                <span class="badge ${isAck ? 'badge-success' : 'badge-ghost'}" style="font-size:10px;">
+                  ${isAck ? 'ACKNOWLEDGED' : 'SENT'}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 async function loadSimHistory() {
@@ -838,63 +1138,15 @@ async function loadSimHistory() {
 
     const list = await res.json();
     _simHistory = Array.isArray(list) ? list : [];
-
+    renderSimHistoryTable();
+  } catch (err) {
     if (_simHistory.length === 0) {
       container.innerHTML = `
         <div style="color:var(--text-2); font-size:12px; text-align:center; padding:16px;">
-          No simulation runs recorded yet. Launch your first test alert above.
+          Unable to load simulation history: ${err.message}
         </div>
       `;
-      return;
     }
-
-    container.innerHTML = `
-      <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
-        <thead>
-          <tr style="border-bottom:1px solid var(--panel-border); color:var(--text-2); font-family:var(--font-mono); font-size:11px;">
-            <th style="padding:8px 10px;">TIMESTAMP</th>
-            <th style="padding:8px 10px;">SCENARIO</th>
-            <th style="padding:8px 10px;">SEVERITY</th>
-            <th style="padding:8px 10px;">SECTOR</th>
-            <th style="padding:8px 10px;">CHANNELS</th>
-            <th style="padding:8px 10px;">STATUS</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${_simHistory.map(row => {
-            const time = new Date(row.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const date = new Date(row.createdAt).toLocaleDateString();
-            const channels = row.channelsRequested?.join(', ') || 'siren, fcm';
-            const isAck = row.acknowledged;
-
-            return `
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                <td style="padding:8px 10px; font-family:var(--font-mono); color:var(--text-1);">${date} ${time}</td>
-                <td style="padding:8px 10px; font-weight:600; color:var(--text-0);">${row.scenario}</td>
-                <td style="padding:8px 10px;">
-                  <span class="badge ${row.severity === 'Critical' ? 'badge-danger' : 'badge-warning'}" style="font-size:10px;">
-                    ${row.severity}
-                  </span>
-                </td>
-                <td style="padding:8px 10px; color:var(--text-1);">${row.location}</td>
-                <td style="padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--cyber);">${channels}</td>
-                <td style="padding:8px 10px;">
-                  <span class="badge ${isAck ? 'badge-success' : 'badge-ghost'}" style="font-size:10px;">
-                    ${isAck ? 'ACKNOWLEDGED' : 'SENT'}
-                  </span>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
-  } catch (err) {
-    container.innerHTML = `
-      <div style="color:var(--text-2); font-size:12px; text-align:center; padding:16px;">
-        Unable to load simulation history: ${err.message}
-      </div>
-    `;
   }
 }
 

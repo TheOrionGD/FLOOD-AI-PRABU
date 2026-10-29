@@ -34,6 +34,17 @@ async function renderResidentWeather(root) {
     </div>
   `;
 
+  // Attach reactive listener for location updates
+  if (typeof AppEvents !== 'undefined') {
+    if (window._resWeatherUnsub) window._resWeatherUnsub();
+    window._resWeatherUnsub = AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, () => {
+      const activeEl = document.getElementById('residentWeatherContent');
+      if (activeEl && typeof state !== 'undefined' && state.page === 'resident-weather') {
+        renderResidentWeather(document.getElementById('pageRoot'));
+      }
+    });
+  }
+
   // Check location from GeoLocationService or state
   const geo = typeof GeoLocationService !== 'undefined' ? GeoLocationService.getStatus() : null;
   const userLat = geo?.coords?.lat ?? state.userLocation?.lat ?? state.userLocation?.latitude;

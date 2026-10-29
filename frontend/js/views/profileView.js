@@ -85,13 +85,22 @@ function getPersonalProfile() {
 }
 
 function renderProfile(root) {
-  const user = state.user || {
-    displayName: 'Guest Operator',
-    email: 'guest@floodai.org',
-    role: 'resident',
-    phone: null,
-    phoneVerified: false,
-  };
+  if (!state.user || !state.token) {
+    if (typeof renderAccessRestricted === 'function') {
+      renderAccessRestricted(root, {
+        allowed: false,
+        reason: 'unauthenticated',
+        message: 'You must be signed in with a verified account to view and customize operator profile settings.',
+        policy: {
+          title: 'Authentication Required',
+          description: 'Access to operator profile, vulnerability parameters, and security tokens requires an authenticated session.'
+        }
+      });
+      return;
+    }
+  }
+
+  const user = state.user;
 
   const personal = getPersonalProfile();
   const currentAccent = state.accent || 'ocean';
@@ -401,63 +410,63 @@ function renderProfile(root) {
               <span>🛡️</span> Operational Role &amp; Workspace Clearance
             </h3>
             <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin:0;">
-              Selecting an operational role immediately auto-configures your workspace layout, active screen, navigation permissions, and telemetry modules.
+              Your clearance is verified by organizational credentials. Click an authorized workspace to launch.
             </p>
           </div>
           <span class="glass-badge" style="background:${user.role === 'admin' ? 'rgba(255,77,106,0.18)' : (user.role === 'analyst' ? 'rgba(51,199,255,0.18)' : 'rgba(31,224,168,0.18)')}; color:${user.role === 'admin' ? 'var(--red)' : (user.role === 'analyst' ? 'var(--accent-primary)' : 'var(--ocean)')}; font-family:var(--font-mono); font-size:11px;">
-            CURRENT: ${(user.role || 'resident').toUpperCase()}
+            VERIFIED CLEARANCE: ${(user.role || 'resident').toUpperCase()}
           </span>
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">
           <!-- Admin Card -->
-          <div onclick="autoConfigureRoleScreens('admin')" 
+          <div onclick="navigateToRoleWorkspace('admin')" 
             style="padding:18px; border-radius:14px; cursor:pointer; transition:all 0.25s ease; border:1px solid ${user.role === 'admin' ? '#EF4444' : 'var(--panel-border)'}; background:${user.role === 'admin' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.02)'};"
             class="role-select-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <span style="font-size:24px;">⚡</span>
-              ${user.role === 'admin' ? '<span style="font-size:10px; font-weight:700; color:#EF4444; font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : ''}
+              ${user.role === 'admin' ? '<span style="font-size:10px; font-weight:700; color:#EF4444; font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : '<span style="font-size:10px; font-weight:600; color:var(--text-muted); font-family:var(--font-mono);">🔒 ADMIN CLEARANCE</span>'}
             </div>
             <div style="font-size:15px; font-weight:700; color:var(--text-0);">Administrator Clearance</div>
             <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45;">
               Platform operations center, user RBAC directory, system configuration, alert dispatch, and compliance audit explorer.
             </div>
             <div style="margin-top:12px; font-size:11.5px; font-weight:600; color:#FF6B6B;">
-              Auto-configures to: Platform Operations (admin-ops) →
+              Launch: Platform Operations (admin-ops) →
             </div>
           </div>
 
           <!-- Analyst Card -->
-          <div onclick="autoConfigureRoleScreens('analyst')" 
+          <div onclick="navigateToRoleWorkspace('analyst')" 
             style="padding:18px; border-radius:14px; cursor:pointer; transition:all 0.25s ease; border:1px solid ${user.role === 'analyst' ? 'var(--accent-primary)' : 'var(--panel-border)'}; background:${user.role === 'analyst' ? 'var(--accent-glow)' : 'rgba(255,255,255,0.02)'};"
             class="role-select-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <span style="font-size:24px;">🧪</span>
-              ${user.role === 'analyst' ? '<span style="font-size:10px; font-weight:700; color:var(--accent-primary); font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : ''}
+              ${user.role === 'analyst' ? '<span style="font-size:10px; font-weight:700; color:var(--accent-primary); font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : (user.role === 'admin' ? '<span style="font-size:10px; font-weight:600; color:var(--accent-primary); font-family:var(--font-mono);">✓ AUTHORIZED (ADMIN)</span>' : '<span style="font-size:10px; font-weight:600; color:var(--text-muted); font-family:var(--font-mono);">🔒 ANALYST CLEARANCE</span>')}
             </div>
             <div style="font-size:15px; font-weight:700; color:var(--text-0);">Analyst Hydrologic Lab</div>
             <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45;">
               Interactive prediction workbench, SHAP feature attributions, district risk matrix, historical evaluation log, and threat intel.
             </div>
             <div style="margin-top:12px; font-size:11.5px; font-weight:600; color:var(--accent-primary);">
-              Auto-configures to: Prediction Workbench (analyst-predict) →
+              Launch: Prediction Workbench (analyst-predict) →
             </div>
           </div>
 
           <!-- Resident Card -->
-          <div onclick="autoConfigureRoleScreens('resident')" 
+          <div onclick="navigateToRoleWorkspace('resident')" 
             style="padding:18px; border-radius:14px; cursor:pointer; transition:all 0.25s ease; border:1px solid ${(user.role === 'resident' || user.role === 'user') ? 'var(--ocean)' : 'var(--panel-border)'}; background:${(user.role === 'resident' || user.role === 'user') ? 'rgba(31,224,168,0.12)' : 'rgba(255,255,255,0.02)'};"
             class="role-select-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <span style="font-size:24px;">📍</span>
-              ${(user.role === 'resident' || user.role === 'user') ? '<span style="font-size:10px; font-weight:700; color:var(--ocean); font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : ''}
+              ${(user.role === 'resident' || user.role === 'user') ? '<span style="font-size:10px; font-weight:700; color:var(--ocean); font-family:var(--font-mono);">● ACTIVE WORKSPACE</span>' : '<span style="font-size:10px; font-weight:600; color:var(--ocean); font-family:var(--font-mono);">✓ AUTHORIZED</span>'}
             </div>
             <div style="font-size:15px; font-weight:700; color:var(--text-0);">Resident Safety Hub</div>
             <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45;">
               Local real-time flood risk indicator, 1,000km live radar sentinel, emergency advisories, and disaster handbook.
             </div>
             <div style="margin-top:12px; font-size:11.5px; font-weight:600; color:var(--ocean);">
-              Auto-configures to: 1,000km Live Radar (resident-radar) →
+              Launch: Resident Safety Hub (resident-radar) →
             </div>
           </div>
         </div>

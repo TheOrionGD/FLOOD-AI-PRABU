@@ -45,7 +45,7 @@ function renderAlerts(root) {
       
       <!-- Top Title & Narrative Eyebrow -->
       <div style="margin-bottom:24px;">
-        <span class="story-tag" style="color:${levelColor}; border-color:${levelColor}44; background:${levelColor}15;">
+        <span id="alertsDefenseTag" class="story-tag" style="color:${levelColor}; border-color:${levelColor}44; background:${levelColor}15;">
           ● DEFENSE ALERT LEVEL ${level.toUpperCase()}
         </span>
         <h1 style="font-family:var(--font-display); font-size:28px; font-weight:700; margin-top:6px;">
@@ -62,11 +62,11 @@ function renderAlerts(root) {
           NETWORK-WIDE DISASTER STATUS
         </div>
         
-        <div class="level-badge" style="display:inline-flex; align-items:center; gap:8px; margin:14px auto; padding:8px 24px; border-radius:999px; background:${levelColor}22; color:${levelColor}; border:1px solid ${levelColor}55; font-size:20px; font-weight:800; font-family:var(--font-display); letter-spacing:1px;">
+        <div id="alertsLevelBadge" class="level-badge" style="display:inline-flex; align-items:center; gap:8px; margin:14px auto; padding:8px 24px; border-radius:999px; background:${levelColor}22; color:${levelColor}; border:1px solid ${levelColor}55; font-size:20px; font-weight:800; font-family:var(--font-display); letter-spacing:1px;">
           <span style="font-size:14px; animation:pulse 1.5s infinite;">●</span> LEVEL ${level.toUpperCase()}
         </div>
 
-        <p style="color:var(--text-secondary); font-size:14px; max-width:540px; margin:0 auto 20px; line-height:1.5;">
+        <p id="alertsSummaryNarrative" style="color:var(--text-secondary); font-size:14px; max-width:540px; margin:0 auto 20px; line-height:1.5;">
           Highest risk exposure in: <b>${worst.map(w => w.district).join(', ')}</b>.<br/>
           Network aggregate modeled flood hazard index: <b style="color:var(--text-0);">${avgRisk.toFixed(1)}%</b>.
         </p>
@@ -338,3 +338,56 @@ function subscribeCitizenAlerts() {
     toast(`Alert subscriptions registered for ${email || phone}`);
   }
 }
+
+function syncAlertsOverview() {
+  const badge = document.getElementById('alertsLevelBadge');
+  const tag = document.getElementById('alertsDefenseTag');
+  const narrative = document.getElementById('alertsSummaryNarrative');
+  if (!badge && !tag && !narrative) return;
+
+  const districts = (typeof DISTRICTS !== 'undefined' && DISTRICTS.length) ? DISTRICTS : [];
+  if (!districts.length) return;
+
+  const avgRisk = districts.reduce((s, d) => s + (d.avg_risk || d.risk || 0), 0) / districts.length;
+  const level = avgRisk < 30 ? 'Green' : (avgRisk < 55 ? 'Yellow' : (avgRisk < 75 ? 'Orange' : 'Red'));
+  const levelColor = {
+    Green: 'var(--ocean)',
+    Yellow: '#FFD166',
+    Orange: 'var(--amber)',
+    Red: 'var(--red)'
+  }[level];
+
+  const worst = [...districts].sort((a, b) => (b.avg_risk || 0) - (a.avg_risk || 0)).slice(0, 3);
+
+  if (tag) {
+    tag.style.color = levelColor;
+    tag.style.borderColor = `${levelColor}44`;
+    tag.style.background = `${levelColor}15`;
+    tag.innerHTML = `● DEFENSE ALERT LEVEL ${level.toUpperCase()}`;
+  }
+
+  if (badge) {
+    badge.style.background = `${levelColor}22`;
+    badge.style.color = levelColor;
+    badge.style.border = `1px solid ${levelColor}55`;
+    badge.innerHTML = `<span style="font-size:14px; animation:pulse 1.5s infinite;">●</span> LEVEL ${level.toUpperCase()}`;
+  }
+
+  if (narrative) {
+    narrative.innerHTML = `
+      Highest risk exposure in: <b>${worst.map(w => escapeHtml(w.district)).join(', ')}</b>.<br/>
+      Network aggregate modeled flood hazard index: <b style="color:var(--text-0);">${avgRisk.toFixed(1)}%</b>.
+    `;
+  }
+}
+
+// Reactive listeners to update alert console when live emergency events are dispatched or predictions updated
+if (typeof AppEvents !== 'undefined') {
+  AppEvents.on(AppEvents.EVENTS.ALERT_DISPATCHED, () => {
+    syncAlertsOverview();
+  });
+  AppEvents.on(AppEvents.EVENTS.PREDICTION_UPDATED, () => {
+    syncAlertsOverview();
+  });
+}
+

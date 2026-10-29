@@ -23,11 +23,11 @@ function renderAnalystPredict(root) {
         </div>
 
         <!-- Engine Selector Pills -->
-        <div style="display:flex; gap:8px; background:var(--glass-interactive); padding:4px; border-radius:12px; border:1px solid var(--glass-border);">
-          <button class="glass-btn ${_analystSelectedEngine === 'xgboost' ? 'btn-primary' : 'btn-ghost'}" onclick="setAnalystEngine('xgboost')" style="padding:6px 14px; font-size:12px;">
+        <div id="analystEnginePills" style="display:flex; gap:8px; background:var(--glass-interactive); padding:4px; border-radius:12px; border:1px solid var(--glass-border);">
+          <button data-analyst-engine="xgboost" class="glass-btn ${_analystSelectedEngine === 'xgboost' ? 'btn-primary' : 'btn-ghost'}" onclick="setAnalystEngine('xgboost')" style="padding:6px 14px; font-size:12px;">
             XGBoost v2.0
           </button>
-          <button class="glass-btn ${_analystSelectedEngine === 'random_forest' ? 'btn-primary' : 'btn-ghost'}" onclick="setAnalystEngine('random_forest')" style="padding:6px 14px; font-size:12px;">
+          <button data-analyst-engine="random_forest" class="glass-btn ${_analystSelectedEngine === 'random_forest' ? 'btn-primary' : 'btn-ghost'}" onclick="setAnalystEngine('random_forest')" style="padding:6px 14px; font-size:12px;">
             Random Forest Ensemble
           </button>
         </div>
@@ -140,11 +140,40 @@ function renderAnalystPredict(root) {
 
 function setAnalystEngine(eng) {
   _analystSelectedEngine = eng;
-  renderAnalystPredict(document.getElementById('pageRoot'));
+  const pills = document.getElementById('analystEnginePills');
+  if (pills) {
+    pills.querySelectorAll('button[data-analyst-engine]').forEach(btn => {
+      if (btn.getAttribute('data-analyst-engine') === eng) {
+        btn.classList.remove('btn-ghost');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-ghost');
+      }
+    });
+  }
 }
 
 function resetAnalystInputs() {
-  renderAnalystPredict(document.getElementById('pageRoot'));
+  const sets = [
+    { id: 'an_rainfall_mm', val: 120, labelId: 'val_an_rain', suffix: ' mm' },
+    { id: 'an_river_level_m', val: 5.0, labelId: 'val_an_river', suffix: ' m' },
+    { id: 'an_sea_level_m', val: 1.6, labelId: 'val_an_sea', suffix: ' m' },
+    { id: 'an_soil_moisture_pct', val: 40, labelId: 'val_an_soil', suffix: '%' },
+    { id: 'an_reservoir_level_pct', val: 60, labelId: 'val_an_res', suffix: '%' },
+    { id: 'an_elevation_m', val: 30, labelId: 'val_an_elev', suffix: ' m' },
+  ];
+  sets.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (el) el.value = s.val;
+    const lbl = document.getElementById(s.labelId);
+    if (lbl) lbl.textContent = s.val + s.suffix;
+  });
+  const dist = document.getElementById('an_district');
+  if (dist) dist.value = 'Chennai';
+  const cyc = document.getElementById('an_cyclone');
+  if (cyc) cyc.value = '0';
+  toast('Baseline input values restored.');
 }
 
 async function runAnalystInference(e) {
@@ -173,6 +202,10 @@ async function runAnalystInference(e) {
 
   try {
     const res = await api('/predict', 'POST', payload);
+    state.latestPrediction = res;
+    if (typeof AppEvents !== 'undefined') {
+      AppEvents.emit(AppEvents.EVENTS.PREDICTION_UPDATED, res);
+    }
     const wrap = document.getElementById('analystOutputWrap');
     if (!wrap) return;
 
@@ -226,3 +259,17 @@ async function runAnalystInference(e) {
     if (btn) { btn.disabled = false; btn.textContent = '⚡ Execute ML Inference Model'; }
   }
 }
+
+// Reactive listener for location updates
+if (typeof AppEvents !== 'undefined') {
+  AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, (loc) => {
+    const sel = document.getElementById('an_district');
+    if (sel && loc.district) {
+      const match = Array.from(sel.options).find(o => o.value.toLowerCase() === loc.district.toLowerCase());
+      if (match) {
+        sel.value = match.value;
+      }
+    }
+  });
+}
+

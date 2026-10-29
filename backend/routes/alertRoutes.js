@@ -103,11 +103,13 @@ router.post("/simulate-resident-flood", authenticateToken, async (req, res) => {
       scenario = "coastal_surge",
       severity = "Warning",
       location = "Monitored Sector",
+      zoneId = null,
       latitude,
       longitude,
       probabilityPct = 82.5,
       channels = ["siren", "fcm", "email", "sms"],
       testMessage = "",
+      propagationWindow = null,
       directives = [
         "Move ground-floor items and electrical appliances above 1.5 meters immediately.",
         "Low-lying coastal residents within 1km of shoreline commence vertical evacuation.",
@@ -124,6 +126,10 @@ router.post("/simulate-resident-flood", authenticateToken, async (req, res) => {
       "cloudburst",
       "dam_spillway",
       "live_telemetry",
+      "flood_propagation",
+      "resident_exposure",
+      "rainfall_escalation",
+      "water_level_rise",
     ];
     const sanitizedScenario = validScenarios.includes(scenario) ? scenario : "coastal_surge";
 
@@ -353,10 +359,12 @@ router.post("/simulate-resident-flood", authenticateToken, async (req, res) => {
       severity: sanitizedSeverity,
       probabilityPct,
       location,
+      zoneId,
       latitude: resolvedLat,
       longitude: resolvedLon,
       alertTitle,
       alertBody,
+      propagationWindow,
       directives,
       accountDataTargeted: {
         name: user.displayName,

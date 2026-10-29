@@ -92,9 +92,19 @@ const GeoLocationService = {
               lat: saved.lat,
               lon: saved.lon,
               cityName: saved.cityName,
-              district: saved.district || nearest
+              district: saved.district || nearest,
+              stateName: saved.stateName,
+              country: saved.country
             };
+            state.userCoordinates = [saved.lat, saved.lon];
+            state.selectedDistrict = saved.district || nearest || 'Chennai';
             state.locationAccuracyKm = (this.coords.accuracyMeters / 1000).toFixed(1);
+          }
+          if (typeof portalSelectedDistrict !== 'undefined') {
+            portalSelectedDistrict = state.selectedDistrict;
+          }
+          if (typeof predictInputs !== 'undefined') {
+            predictInputs.district = state.selectedDistrict;
           }
           return true;
         }
@@ -132,6 +142,9 @@ const GeoLocationService = {
     this.listeners.forEach(fn => {
       try { fn(s); } catch (e) { console.error('[GeoLocationService] Listener error:', e); }
     });
+    if (typeof AppEvents !== 'undefined') {
+      AppEvents.emit(AppEvents.EVENTS.LOCATION_CHANGED, s);
+    }
     if (typeof renderLocationHeaderWidget === 'function') {
       renderLocationHeaderWidget();
     }
@@ -281,9 +294,19 @@ const GeoLocationService = {
               lat,
               lon,
               cityName: this.coords.cityName,
-              district: this.coords.district || this.coords.nearestDistrict
+              district: this.coords.district || this.coords.nearestDistrict,
+              stateName: this.coords.stateName,
+              country: this.coords.country
             };
+            state.userCoordinates = [lat, lon];
+            state.selectedDistrict = this.coords.district || this.coords.nearestDistrict || this.coords.cityName || 'Chennai';
             state.locationAccuracyKm = (accuracyMeters / 1000).toFixed(1);
+          }
+          if (typeof portalSelectedDistrict !== 'undefined') {
+            portalSelectedDistrict = state.selectedDistrict;
+          }
+          if (typeof predictInputs !== 'undefined') {
+            predictInputs.district = state.selectedDistrict;
           }
 
           this.saveLocationToCache(this.coords);
@@ -357,10 +380,21 @@ const GeoLocationService = {
         lat: d.latitude,
         lon: d.longitude,
         cityName: d.district,
-        district: d.district
+        district: d.district,
+        stateName: d.state,
+        country: 'IN'
       };
+      state.userCoordinates = [d.latitude, d.longitude];
+      state.selectedDistrict = d.district;
       state.locationAccuracyKm = '5.0';
     }
+    if (typeof portalSelectedDistrict !== 'undefined') {
+      portalSelectedDistrict = d.district;
+    }
+    if (typeof predictInputs !== 'undefined') {
+      predictInputs.district = d.district;
+    }
+
     this.error = null;
     this.saveLocationToCache(this.coords);
 
@@ -375,9 +409,6 @@ const GeoLocationService = {
     }
     if (typeof closeLocPickerModal === 'function') {
       closeLocPickerModal();
-    }
-    if (typeof state !== 'undefined' && (state.page === 'portal' || state.page === 'map')) {
-      if (typeof renderPage === 'function') renderPage();
     }
   },
 
@@ -403,6 +434,8 @@ const GeoLocationService = {
       });
     }
 
+    const resolvedDistrict = nearest ? nearest.district : locationData.name;
+
     this.status = this.STATE.LOCATED;
     this.coords = {
       lat: locationData.lat,
@@ -410,7 +443,7 @@ const GeoLocationService = {
       accuracyMeters: 3000,
       timestamp: new Date().toISOString(),
       source: 'manual',
-      district: locationData.name,
+      district: resolvedDistrict,
       cityName: locationData.name,
       stateName: locationData.state || null,
       country: locationData.country || null,
@@ -419,9 +452,25 @@ const GeoLocationService = {
     };
 
     if (typeof state !== 'undefined') {
-      state.userLocation = { lat: locationData.lat, lon: locationData.lon };
+      state.userLocation = {
+        lat: locationData.lat,
+        lon: locationData.lon,
+        cityName: locationData.name,
+        district: resolvedDistrict,
+        stateName: locationData.state || null,
+        country: locationData.country || null
+      };
+      state.userCoordinates = [locationData.lat, locationData.lon];
+      state.selectedDistrict = resolvedDistrict;
       state.locationAccuracyKm = '3.0';
     }
+    if (typeof portalSelectedDistrict !== 'undefined') {
+      portalSelectedDistrict = resolvedDistrict;
+    }
+    if (typeof predictInputs !== 'undefined') {
+      predictInputs.district = resolvedDistrict;
+    }
+
     this.error = null;
     this.saveLocationToCache(this.coords);
 

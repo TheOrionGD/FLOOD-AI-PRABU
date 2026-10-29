@@ -7,6 +7,7 @@
     "test": "node tests/test_climate_engine.js && node tests/test_climate_backgrounds.js && node tests/test_light_theme_particles.js && node tests/test_responsive_role_nav.js",
     "test:unit": "node tests/test_climate_engine.js && node tests/test_climate_backgrounds.js && node tests/test_light_theme_particles.js && node tests/test_responsive_role_nav.js",
     "test:backend": "node backend/test_backend.js",
+    "test:coastal": "node tests/test_coastal_flood_engine.js",
     "test:full": "node tests/test_full_system.js",
     "test:saas": "node tests/test_saas_flow.js",
     "test:ml": "python ml_model/test_ml_service.py",

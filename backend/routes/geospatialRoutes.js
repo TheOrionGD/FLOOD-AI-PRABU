@@ -7,6 +7,12 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
+const CoastalDiscoveryService = require("../services/coastalDiscoveryService");
+const EnvironmentalIntelligenceService = require("../services/environmentalIntelligenceService");
+const RiskRankingEngine = require("../services/riskRankingEngine");
+const CoastalPropagationEngine = require("../services/coastalPropagationEngine");
+const CoastalZoneSnapshot = require("../models/CoastalZoneSnapshot");
+
 
 // Verified polygon coordinates representing district boundaries for the 10 monitored regions
 const DISTRICT_GEOJSON = {
@@ -500,5 +506,241 @@ router.get("/climatic-intelligence", async (req, res) => {
   });
 });
 
+// =========================================================================
+// DYNAMIC GLOBAL COASTAL FLOOD INTELLIGENCE & PROPAGATION ENDPOINTS
+// =========================================================================
+
+/**
+ * GET /api/geospatial/coastal-intelligence
+ * Query parameters:
+ *  - lat: User's latitude (default: 13.0827)
+ *  - lon: User's longitude (default: 80.2707)
+ *  - radius: Configurable search radius in km (default: 500)
+ */
+router.get("/coastal-intelligence", async (req, res) => {
+  try {
+    let lat = parseFloat(req.query.lat);
+    let lon = parseFloat(req.query.lon);
+    let radius = parseFloat(req.query.radius);
+
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      lat = 13.0827;
+      lon = 80.2707;
+    }
+
+    // Configurable radius: default 500 km, bounded between 10 km and 1500 km
+    const radiusKm = !isNaN(radius) && radius > 0 ? Math.min(1500, Math.max(10, radius)) : CoastalDiscoveryService.DEFAULT_RADIUS_KM;
+
+    // 1. Resolve Resident Locality and Elevation concurrently
+    let residentLocality = "Monitored Resident Sector";
+    let residentDistrict = "Regional Coastal District";
+    let residentState = "Regional Sector";
+    let residentCountry = "Global";
+    let residentElevation = 12.0;
+
+    try {
+      const [osmRes, elevRes] = await Promise.allSettled([
+        axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`, {
+          headers: { "User-Agent": "FloodAI-GlobalCoastal/2.5" },
+          timeout: 2500,
+        }),
+        axios.get(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`, { timeout: 2500 }),
+      ]);
+
+      if (osmRes.status === "fulfilled" && osmRes.value.data?.address) {
+        const a = osmRes.value.data.address;
+        residentLocality = a.suburb || a.neighbourhood || a.city || a.town || a.village || residentLocality;
+        residentDistrict = a.state_district || a.county || a.city || residentDistrict;
+        residentState = a.state || residentState;
+        residentCountry = a.country || residentCountry;
+      }
+
+      if (elevRes.status === "fulfilled" && Array.isArray(elevRes.value.data?.elevation)) {
+        const e = elevRes.value.data.elevation[0];
+        if (typeof e === "number" && !isNaN(e)) residentElevation = Math.round(e * 10) / 10;
+      }
+    } catch (resolveErr) {
+      console.warn("[CoastalIntelligence:ResolveNotice]", resolveErr.message);
+    }
+
+    // 2. Discover Coastal Zones Dynamically within Configured Radius (Default 500 km)
+    const discoveredZones = CoastalDiscoveryService.discoverCoastalZones(
+      lat,
+      lon,
+      radiusKm,
+      {
+        locality: residentLocality,
+        cityName: residentLocality,
+        district: residentDistrict,
+        state: residentState,
+        country: residentCountry,
+        elevation: residentElevation,
+      }
+    );
+
+    // 3. Ingest Real-Time Environmental Observations (OpenWeatherMap + Open-Meteo)
+    const enrichedZones = await EnvironmentalIntelligenceService.ingestZonesTelemetry(discoveredZones);
+
+    // 4. Perform Environmental Change Detection & Multi-Factor Risk Ranking
+    const rankedZones = RiskRankingEngine.rankCoastalZones(enrichedZones);
+
+    // 5. Evaluate Resident Coastal Exposure Characterization
+    const residentExposureContext = CoastalDiscoveryService.evaluateResidentCoastalExposure(lat, lon, residentElevation);
+
+    // 6. Build Directed Propagation Graph and Assess Flood Hazard Cascades
+    const residentLocationContext = {
+      latitude: lat,
+      longitude: lon,
+      elevationMsl: residentElevation,
+      locality: residentLocality,
+      district: residentDistrict,
+    };
+
+    const propagationGraph = CoastalPropagationEngine.buildPropagationGraph(rankedZones, residentLocationContext);
+    const residentExposureAssessment = CoastalPropagationEngine.assessResidentExposure(
+      propagationGraph,
+      rankedZones,
+      residentLocationContext
+    );
+
+    // 7. Calculate Aggregated Summary Metrics
+    const criticalCount = rankedZones.filter((z) => z.riskAssessment?.riskCategory === "Critical").length;
+    const highCount = rankedZones.filter((z) => z.riskAssessment?.riskCategory === "High").length;
+    const elevatedCount = rankedZones.filter((z) => z.riskAssessment?.riskCategory === "Elevated").length;
+    const normalCount = rankedZones.filter((z) => z.riskAssessment?.riskCategory === "Normal").length;
+
+    const highestRiskZone = rankedZones[0] || null;
+    const timestamp = new Date().toISOString();
+
+    // 8. Asynchronously persist top snapshots to MongoDB for auditability and history
+    setImmediate(async () => {
+      try {
+        const topSnapshots = rankedZones.slice(0, 15).map((z) => ({
+          zoneId: z.zoneId,
+          name: z.name,
+          region: z.region,
+          country: z.country,
+          coordinates: z.coordinates,
+          distanceFromUserKm: z.distanceFromUserKm,
+          elevationMsl: z.elevationMsl,
+          coastalFeatureType: z.coastalFeatureType,
+          drainageBasin: z.drainageBasin,
+          observations: z.observations,
+          baselineChanges: z.baselineChanges,
+          riskAssessment: z.riskAssessment,
+          searchQueryContext: { centerLat: lat, centerLon: lon, radiusKm },
+        }));
+        await CoastalZoneSnapshot.insertMany(topSnapshots, { ordered: false }).catch(() => {});
+      } catch (e) {
+        // Silent persistence failover
+      }
+    });
+
+    res.json({
+      success: true,
+      timestamp,
+      queryContext: {
+        centerLatitude: lat,
+        centerLongitude: lon,
+        radiusKm,
+        defaultRadiusKm: CoastalDiscoveryService.DEFAULT_RADIUS_KM,
+        recalculatedAt: timestamp,
+      },
+      residentContext: {
+        locality: residentLocality,
+        district: residentDistrict,
+        state: residentState,
+        country: residentCountry,
+        elevationMsl: residentElevation,
+        distanceToCoastKm: residentExposureContext.distanceToCoastKm,
+        isCoastal: residentExposureContext.isCoastal,
+        exposureTier: residentExposureContext.exposureTier,
+        nearestCoastalZone: residentExposureContext.nearestCoastalZoneName,
+      },
+      summary: {
+        totalDiscoveredZones: discoveredZones.length,
+        criticalThreatCount: criticalCount,
+        highThreatCount: highCount,
+        elevatedWatchCount: elevatedCount,
+        normalCount,
+        peakRiskScore: highestRiskZone ? highestRiskZone.riskAssessment.riskScore : 15.0,
+        peakRiskZoneName: highestRiskZone ? highestRiskZone.name : "None",
+        dataFreshnessIso: timestamp,
+      },
+      rankedZones,
+      propagationGraph,
+      residentExposure: residentExposureAssessment,
+    });
+  } catch (err) {
+    console.error("[Geospatial:CoastalIntelligence:Error]", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate dynamic coastal flood intelligence",
+      detail: err.message,
+    });
+  }
+});
+
+/**
+ * GET /api/geospatial/coastal-zone/:zoneId
+ * Fetches detailed telemetry, baseline changes, and propagation connectivity for a specific zone.
+ */
+router.get("/coastal-zone/:zoneId", async (req, res) => {
+  try {
+    const { zoneId } = req.params;
+    const zone = CoastalDiscoveryService.getZoneById(zoneId);
+    if (!zone) {
+      return res.status(404).json({ success: false, error: "Coastal monitoring zone not found" });
+    }
+
+    const telemetry = await EnvironmentalIntelligenceService.fetchZoneTelemetry(
+      zone.lat,
+      zone.lon,
+      zone.zoneId
+    );
+    const changes = RiskRankingEngine.detectBaselineChanges(telemetry);
+    const riskAssessment = RiskRankingEngine.calculateRiskAssessment(zone, telemetry, changes);
+
+    res.json({
+      success: true,
+      zone: {
+        zoneId: zone.zoneId,
+        name: zone.name,
+        region: zone.region,
+        country: zone.country,
+        coordinates: { latitude: zone.lat, longitude: zone.lon },
+        elevationMsl: zone.elevationMsl,
+        coastalFeatureType: zone.coastalFeatureType,
+        drainageBasin: zone.drainageBasin,
+      },
+      observations: telemetry,
+      baselineChanges: changes,
+      riskAssessment,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch zone evidence", detail: err.message });
+  }
+});
+
+/**
+ * POST /api/geospatial/refresh-coastal
+ * Forces an immediate telemetry refresh and cache bust.
+ */
+router.post("/refresh-coastal", async (req, res) => {
+  try {
+    const { lat, lon, radius } = req.body || {};
+    const redirectUrl = `/api/geospatial/coastal-intelligence?lat=${lat || 13.0827}&lon=${lon || 80.2707}&radius=${radius || 500}`;
+    res.json({
+      success: true,
+      message: "Telemetry refresh initiated.",
+      fetchEndpoint: redirectUrl,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+
 

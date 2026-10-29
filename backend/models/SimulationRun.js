@@ -16,7 +16,20 @@ const SimulationRunSchema = new mongoose.Schema(
     },
     scenario: {
       type: String,
-      enum: ["heavy_rainfall", "rising_water_level", "coastal_inundation", "official_warning", "coastal_surge", "cloudburst", "dam_spillway", "live_telemetry"],
+      enum: [
+        "heavy_rainfall",
+        "rising_water_level",
+        "coastal_inundation",
+        "official_warning",
+        "coastal_surge",
+        "cloudburst",
+        "dam_spillway",
+        "live_telemetry",
+        "flood_propagation",
+        "resident_exposure",
+        "rainfall_escalation",
+        "water_level_rise"
+      ],
       required: true,
     },
     severity: {

@@ -61,6 +61,22 @@ async function renderResidentAlerts(root) {
     </div>
   `;
 
+  // Attach reactive listener for live alert updates across workspaces
+  if (typeof AppEvents !== 'undefined') {
+    if (window._resAlertsUnsub) window._resAlertsUnsub();
+    const unsub1 = AppEvents.on(AppEvents.EVENTS.ALERT_DISPATCHED, (ev) => {
+      if (!ev?.isSimulation && document.getElementById('residentAlertsListWrap')) {
+        _loadResidentAlertsList();
+      }
+    });
+    const unsub2 = AppEvents.on(AppEvents.EVENTS.ALERT_RESOLVED, () => {
+      if (document.getElementById('residentAlertsListWrap')) {
+        _loadResidentAlertsList();
+      }
+    });
+    window._resAlertsUnsub = () => { unsub1(); unsub2(); };
+  }
+
   await _loadResidentAlertsList();
 }
 

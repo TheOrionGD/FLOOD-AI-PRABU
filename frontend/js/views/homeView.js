@@ -86,7 +86,7 @@ async function renderHome(root) {
 
       <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
         <!-- Persona 1: Resident & Citizen -->
-        <div class="liquid-glass persona-card border-scale card-glow" onclick="autoConfigureRoleScreens('resident')" style="cursor:pointer;">
+        <div class="liquid-glass persona-card border-scale card-glow" onclick="navigateToRoleWorkspace('resident')" style="cursor:pointer;">
           <div>
             <div class="persona-badge" style="background:rgba(31,224,168,0.15); color:var(--ocean); border:1px solid rgba(31,224,168,0.3);">
               🛡️ For Public Residents &amp; Citizens
@@ -97,12 +97,12 @@ async function renderHome(root) {
             </p>
           </div>
           <button class="btn btn-sm btn-ghost" style="width:100%; justify-content:center; gap:8px;">
-            Configure Resident Hub →
+            Access Resident Hub →
           </button>
         </div>
 
         <!-- Persona 2: Emergency Responder / Admin -->
-        <div class="liquid-glass persona-card border-scale card-glow" onclick="autoConfigureRoleScreens('admin')" style="cursor:pointer;">
+        <div class="liquid-glass persona-card border-scale card-glow" onclick="navigateToRoleWorkspace('admin')" style="cursor:pointer;">
           <div>
             <div class="persona-badge" style="background:rgba(255,77,106,0.15); color:var(--red); border:1px solid rgba(255,77,106,0.3);">
               🚨 For Emergency Responders &amp; Commanders
@@ -113,12 +113,12 @@ async function renderHome(root) {
             </p>
           </div>
           <button class="btn btn-sm btn-ghost" style="width:100%; justify-content:center; gap:8px;">
-            Configure Admin Operations →
+            Access Threat Command →
           </button>
         </div>
 
         <!-- Persona 3: Data Scientist / Analyst -->
-        <div class="liquid-glass persona-card border-scale card-glow" onclick="autoConfigureRoleScreens('analyst')" style="cursor:pointer;">
+        <div class="liquid-glass persona-card border-scale card-glow" onclick="navigateToRoleWorkspace('analyst')" style="cursor:pointer;">
           <div>
             <div class="persona-badge" style="background:rgba(51,199,255,0.15); color:var(--cyber); border:1px solid rgba(51,199,255,0.3);">
               🔬 For Hydrologists &amp; AI Analysts
@@ -129,7 +129,7 @@ async function renderHome(root) {
             </p>
           </div>
           <button class="btn btn-sm btn-ghost" style="width:100%; justify-content:center; gap:8px;">
-            Configure Analyst Lab →
+            Access Analyst Lab →
           </button>
         </div>
       </div>

@@ -17,11 +17,11 @@ function renderPredict(root) {
     <p class="page-sub">Adjust meteorological factors to simulate potential flood conditions. Predictions execute live through the Python ML microservice.</p>
 
     <!-- Engine Selector Bar -->
-    <div style="display:flex; align-items:center; gap:12px; margin:20px 0; padding:12px 18px; border-radius:12px; background:var(--bg-1); border:1px solid var(--panel-border); flex-wrap:wrap;">
+    <div id="engineSelectorBar" style="display:flex; align-items:center; gap:12px; margin:20px 0; padding:12px 18px; border-radius:12px; background:var(--bg-1); border:1px solid var(--panel-border); flex-wrap:wrap;">
       <span style="font-size:12.5px; font-weight:600; color:var(--text-1);">Active Inference Engine:</span>
-      <button class="btn btn-sm ${state.activeEngine === 'xgboost' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('xgboost')">XGBoost Classifier (Primary)</button>
-      <button class="btn btn-sm ${state.activeEngine === 'random_forest' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('random_forest')">Random Forest (Baseline)</button>
-      <button class="btn btn-sm ${state.activeEngine === 'ensemble' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('ensemble')">Dual-Ensemble (Weighted)</button>
+      <button data-engine="xgboost" class="btn btn-sm ${state.activeEngine === 'xgboost' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('xgboost')">XGBoost Classifier (Primary)</button>
+      <button data-engine="random_forest" class="btn btn-sm ${state.activeEngine === 'random_forest' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('random_forest')">Random Forest (Baseline)</button>
+      <button data-engine="ensemble" class="btn btn-sm ${state.activeEngine === 'ensemble' ? 'btn-primary' : 'btn-ghost'}" onclick="setEngine('ensemble')">Dual-Ensemble (Weighted)</button>
     </div>
 
     <div class="predict-layout">
@@ -96,7 +96,22 @@ function renderPredict(root) {
 function setEngine(engine) {
   state.activeEngine = engine;
   toast(`Inference engine set to: ${engine.toUpperCase()}`);
-  renderPage();
+
+  const bar = document.getElementById('engineSelectorBar');
+  if (bar) {
+    const btns = bar.querySelectorAll('button[data-engine]');
+    btns.forEach(btn => {
+      if (btn.getAttribute('data-engine') === engine) {
+        btn.classList.remove('btn-ghost');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-ghost');
+      }
+    });
+  }
+
+  executePrediction(false);
 }
 
 async function populateFromLiveWeather() {
@@ -163,10 +178,14 @@ function renderFormGrid() {
   });
 }
 
+let _predictReqSeq = 0;
+
 async function executePrediction(fromUserClick = false) {
   const panel = document.getElementById('resultPanel');
   const btn = document.getElementById('predictBtn');
   if (!panel) return;
+
+  const thisReqId = ++_predictReqSeq;
 
   if (fromUserClick && btn) {
     btn.disabled = true;
@@ -198,8 +217,14 @@ async function executePrediction(fromUserClick = false) {
       engine: state.activeEngine,
     };
     result = await api('/predict', 'POST', payload, false);
+    if (thisReqId !== _predictReqSeq) return; // Stale response discarded
+
     state.latestPrediction = result;
+    if (typeof AppEvents !== 'undefined') {
+      AppEvents.emit(AppEvents.EVENTS.PREDICTION_UPDATED, result);
+    }
   } catch (err) {
+    if (thisReqId !== _predictReqSeq) return;
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = 'Execute Threat Model &rarr;';
@@ -351,3 +376,24 @@ async function synthesizeThreatIntelligence() {
     }
   }
 }
+
+// Reactive listener to synchronize predict inputs when location changes elsewhere
+if (typeof AppEvents !== 'undefined') {
+  AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, (loc) => {
+    const sel = document.getElementById('f_district');
+    if (!sel || !loc.district) return;
+    if (sel.value.toLowerCase() !== loc.district.toLowerCase()) {
+      sel.value = loc.district;
+      predictInputs.district = loc.district;
+      const d = DISTRICTS.find(x => x.district.toLowerCase() === loc.district.toLowerCase());
+      if (d) {
+        predictInputs.elevation_m = Math.round(d.avg_elevation || d.elevation_m || 20);
+        predictInputs.distance_from_coast_km = Math.round((d.avg_elevation || 20) < 100 ? 15 : 220);
+        predictInputs.population_density = Math.round(d.avg_population_density || 1200);
+      }
+      renderFormGrid();
+      executePrediction();
+    }
+  });
+}
+

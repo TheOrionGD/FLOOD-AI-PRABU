@@ -162,13 +162,13 @@ function renderLogin(root) {
             </button>
           </form>
 
-          <!-- Alternative Registration Switch & Guest Link -->
+          <!-- Alternative Registration Switch & Public Link -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; font-size:12.5px; color:var(--text-muted);">
             <div>
               New operator? <a href="javascript:void(0)" onclick="openAuthModal('register')" style="color:var(--accent-primary); font-weight:600;">Create Account</a>
             </div>
             <a href="javascript:void(0)" onclick="goTo('home')" style="color:var(--text-muted);">
-              Browse as Guest ↗
+              Return to Public Portal ↗
             </a>
           </div>
 

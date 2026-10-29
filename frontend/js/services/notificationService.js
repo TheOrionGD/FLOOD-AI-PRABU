@@ -64,10 +64,11 @@ function handleIncomingNotificationPayload(payload) {
   const title = payload.notification?.title || payload.data?.title || payload.title || '🚨 FloodAI Emergency Alert';
   const body = payload.notification?.body || payload.data?.body || payload.body || 'Elevated flood risk detected in your monitored zone.';
   const severity = payload.data?.severity || payload.severity || 'High';
+  const isSimulation = Boolean(payload.isSimulation || payload.data?.isSimulation === 'true' || payload.data?.isSimulation === true);
 
   // 1. Play alert acoustic sound
   if (typeof AlertSound !== 'undefined') {
-    AlertSound.play(severity === 'Very High' ? 'red' : (severity === 'High' ? 'orange' : 'yellow'));
+    AlertSound.play(severity === 'Very High' || severity === 'Critical' ? 'red' : (severity === 'High' ? 'orange' : 'yellow'));
   }
   if (typeof vibrate === 'function') {
     vibrate([300, 150, 300]);
@@ -75,7 +76,8 @@ function handleIncomingNotificationPayload(payload) {
 
   // 2. Show prominent toast
   if (typeof toast === 'function') {
-    toast(`🚨 [${String(severity).toUpperCase()}] ${title}: ${body}`);
+    const prefix = isSimulation ? '🧪 [SIMULATED TEST]' : `🚨 [${String(severity).toUpperCase()}]`;
+    toast(`${prefix} ${title}: ${body}`);
   }
 
   // 3. Trigger native desktop OS notification
@@ -85,6 +87,33 @@ function handleIncomingNotificationPayload(payload) {
     tag: `floodai-alert-${Date.now()}`,
     data: payload.data || payload
   });
+
+  // 4. Propagate real-time reactive event across open workspace views
+  if (typeof AppEvents !== 'undefined') {
+    if (isSimulation) {
+      AppEvents.emit(AppEvents.EVENTS.SIMULATION_EXECUTED, {
+        ...payload,
+        isSimulation: true,
+        severity,
+        title,
+        body,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      AppEvents.emit(AppEvents.EVENTS.ALERT_DISPATCHED, {
+        alert: {
+          _id: payload.alertId || payload._id || `alert_${Date.now()}`,
+          location: payload.location || payload.data?.location || 'Monitored Sector',
+          level: severity,
+          message: body,
+          createdAt: new Date().toISOString(),
+          active: true,
+          ...payload
+        },
+        isSimulation: false
+      });
+    }
+  }
 }
 
 /**

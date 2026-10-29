@@ -14,7 +14,7 @@ async function renderPortal(root) {
     }
   }
 
-  const user = state.user;
+  const user = (state.user && state.token) ? state.user : null;
 
   root.innerHTML = `
     <div class="eyebrow">Public Safety Grid · Personalized Flood Intelligence · User Data Isolation</div>
@@ -31,7 +31,7 @@ async function renderPortal(root) {
         </div>
         <div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <h3 style="font-family:var(--font-display); font-size:17px; margin:0;" class="text-glow-cyber">${user ? escapeHtml(user.displayName) : 'Guest Resident Session'}</h3>
+            <h3 style="font-family:var(--font-display); font-size:17px; margin:0;" class="text-glow-cyber">${user ? escapeHtml(user.displayName || user.email) : 'Public Citizen Portal'}</h3>
             <span style="font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:4px; background:rgba(51,199,255,0.15); color:var(--cyber);">
               ${user ? (user.role || 'Resident') : 'Public Access'}
             </span>
@@ -147,8 +147,15 @@ async function renderPortal(root) {
   loadUserAlertHistory();
 }
 
+let _portalTelemetrySeq = 0;
+
 function changePortalDistrict(dName) {
   portalSelectedDistrict = dName;
+  if (typeof GeoLocationService !== 'undefined' && GeoLocationService.selectManualDistrict) {
+    GeoLocationService.selectManualDistrict(dName);
+  } else if (typeof AppStore !== 'undefined' && AppStore.syncLocation) {
+    AppStore.syncLocation({ district: dName });
+  }
   loadPortalDistrictTelemetry(dName);
 }
 
@@ -157,6 +164,8 @@ async function loadPortalDistrictTelemetry(districtName, isRefresh = false) {
   const body = document.getElementById('portalDistrictBody');
   const shelterList = document.getElementById('portalSheltersList');
   if (!body) return;
+
+  const thisSeq = ++_portalTelemetrySeq;
 
   if (isRefresh) {
     body.classList.add('refreshing-card');
@@ -199,6 +208,9 @@ async function loadPortalDistrictTelemetry(districtName, isRefresh = false) {
 
     const risk = d.avg_risk || 40;
     const col = riskColor(risk);
+
+    if (thisSeq !== _portalTelemetrySeq) return; // Stale telemetry response discarded
+
     body.classList.remove('refreshing-card');
 
     body.innerHTML = `
@@ -321,3 +333,24 @@ async function loadUserAlertHistory() {
     });
   }
 }
+
+// Reactive subscriptions for portal view components
+if (typeof AppEvents !== 'undefined') {
+  AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, (loc) => {
+    const sel = document.getElementById('portalDistrictSelect');
+    if (!sel || !loc.district) return;
+    if (sel.value.toLowerCase() !== loc.district.toLowerCase()) {
+      sel.value = loc.district;
+      portalSelectedDistrict = loc.district;
+      loadPortalDistrictTelemetry(loc.district);
+    }
+  });
+
+  AppEvents.on(AppEvents.EVENTS.ALERT_DISPATCHED, () => {
+    const container = document.getElementById('portalAlertHistory');
+    if (container) {
+      loadUserAlertHistory();
+    }
+  });
+}
+

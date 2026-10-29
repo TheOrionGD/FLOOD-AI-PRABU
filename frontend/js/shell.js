@@ -37,49 +37,42 @@ function getRoleColor(role) {
   return 'var(--ocean)';
 }
 
-function autoConfigureRoleScreens(targetRole, shouldNavigate = true) {
-  if (!targetRole) targetRole = state.user?.role || 'resident';
-
-  if (!state.user) {
-    state.user = {
-      id: `usr_${targetRole}_${Date.now().toString(36)}`,
-      email: `${targetRole}@floodai.org`,
-      displayName: `${targetRole.charAt(0).toUpperCase() + targetRole.slice(1)} Operator`,
-      role: targetRole,
-      createdAt: new Date().toISOString()
-    };
-  } else {
-    state.user.role = targetRole;
-    if (!state.user.displayName || state.user.displayName === 'Anonymous User' || state.user.displayName.includes('Operator')) {
-      state.user.displayName = `${targetRole.charAt(0).toUpperCase() + targetRole.slice(1)} Operator`;
+function navigateToRoleWorkspace(targetRole) {
+  const targetScreen = getRoleHomeScreen(targetRole);
+  if (!state.user || !state.token) {
+    if (typeof toast === 'function') {
+      toast(`Authentication required: Please sign in with an authorized ${targetRole.toUpperCase()} account.`);
     }
+    closeMobileMenu();
+    openAuthModal('login', targetScreen);
+    return;
   }
 
-  try {
-    localStorage.setItem('floodai-user', JSON.stringify(state.user));
-  } catch (_) {}
-
-  const targetScreen = getRoleHomeScreen(targetRole);
+  const check = checkRouteAccess(targetScreen);
+  if (!check.allowed) {
+    if (typeof toast === 'function') {
+      toast(`Access restricted: Your current account (${state.user.role}) lacks ${targetRole.toUpperCase()} clearance.`);
+    }
+    closeMobileMenu();
+    openAuthModal('login', targetScreen);
+    return;
+  }
 
   closeMobileMenu();
-
-  // Re-render shell so that sidebar and mobile menu auto-configure with role groups
-  renderShell();
-
-  if (shouldNavigate) {
-    goTo(targetScreen);
-    if (typeof toast === 'function') {
-      toast(`Workspace auto-configured for ${targetRole.toUpperCase()}: Switched to ${targetScreen}`);
-    }
-  }
+  goTo(targetScreen);
 }
 
-function cycleRoleAutoConfigure() {
-  const currentRole = state.user?.role || 'resident';
-  const roleOrder = ['resident', 'analyst', 'admin'];
-  const nextIdx = (roleOrder.indexOf(currentRole) + 1) % roleOrder.length;
-  const nextRole = roleOrder[nextIdx];
-  autoConfigureRoleScreens(nextRole, true);
+// Enforce strict authentication and clearance; never synthesize dummy accounts
+function autoConfigureRoleScreens(targetRole, shouldNavigate = true) {
+  navigateToRoleWorkspace(targetRole);
+}
+
+function handleRoleBadgeClick() {
+  if (!state.user || !state.token) {
+    openAuthModal('login');
+  } else {
+    goTo('profile');
+  }
 }
 
 function toggleGlobalTheme() {
@@ -92,6 +85,9 @@ function toggleGlobalTheme() {
   themeBtns.forEach(btn => {
     if (btn) btn.innerHTML = state.theme === 'dark' ? iconSun() : iconMoon();
   });
+  if (typeof AppEvents !== 'undefined') {
+    AppEvents.emit(AppEvents.EVENTS.THEME_CHANGED, { theme: state.theme });
+  }
   if (typeof toast === 'function') {
     toast(`${state.theme === 'dark' ? 'Dark' : 'Light'} mode enabled`);
   }
@@ -101,35 +97,47 @@ function toggleGlobalTheme() {
 }
 
 function renderSidebarNavigation() {
-  const role = state.user?.role || 'user';
+  const isAuthenticated = Boolean(state.user && state.token);
+  const role = isAuthenticated ? (state.user?.role || 'resident').toLowerCase() : null;
   const curPage = state.page || 'home';
 
-  const roleSwitcherHtml = `
-    <div class="sidebar-role-switcher" style="margin: 0 4px 14px; padding: 10px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid var(--panel-border);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-2); font-family:var(--font-mono);">
-          WORKSPACE ROLE
-        </span>
-        <span class="role-indicator-badge" style="background:${getRoleColor(role)}22; color:${getRoleColor(role)}; border:1px solid ${getRoleColor(role)}55; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px;">
-          ${role.toUpperCase()}
-        </span>
+  let roleSwitcherHtml = '';
+  if (isAuthenticated) {
+    roleSwitcherHtml = `
+      <div class="sidebar-role-switcher" style="margin: 0 4px 14px; padding: 10px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid var(--panel-border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-2); font-family:var(--font-mono);">
+            CLEARANCE LEVEL
+          </span>
+          <span class="role-indicator-badge" style="background:${getRoleColor(role)}22; color:${getRoleColor(role)}; border:1px solid ${getRoleColor(role)}55; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px;">
+            ${role.toUpperCase()}
+          </span>
+        </div>
+        <div style="font-size:11px; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(state.user.email || state.user.displayName)}">
+          👤 ${escapeHtml(state.user.displayName || state.user.email)}
+        </div>
       </div>
-      <div class="role-switch-buttons" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px;">
-        <button class="role-btn ${role === 'admin' ? 'active' : ''}" onclick="autoConfigureRoleScreens('admin')" title="Switch to Admin Operations Workspace" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${role === 'admin' ? '#EF4444' : 'var(--panel-border)'}; background:${role === 'admin' ? 'rgba(239,68,68,0.22)' : 'transparent'}; color:${role === 'admin' ? '#FF6B6B' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          ⚡ Admin
-        </button>
-        <button class="role-btn ${role === 'analyst' ? 'active' : ''}" onclick="autoConfigureRoleScreens('analyst')" title="Switch to Analyst Hydrologic Lab" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${role === 'analyst' ? 'var(--accent-primary)' : 'var(--panel-border)'}; background:${role === 'analyst' ? 'var(--accent-glow)' : 'transparent'}; color:${role === 'analyst' ? 'var(--accent-primary)' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          🧪 Analyst
-        </button>
-        <button class="role-btn ${role === 'resident' || role === 'user' ? 'active' : ''}" onclick="autoConfigureRoleScreens('resident')" title="Switch to Resident Safety Hub" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${(role === 'resident' || role === 'user') ? 'var(--ocean)' : 'var(--panel-border)'}; background:${(role === 'resident' || role === 'user') ? 'rgba(31,224,168,0.22)' : 'transparent'}; color:${(role === 'resident' || role === 'user') ? 'var(--ocean)' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          📍 Resident
+    `;
+  } else {
+    roleSwitcherHtml = `
+      <div class="sidebar-role-switcher" style="margin: 0 4px 14px; padding: 12px 10px; border-radius: 12px; background: rgba(51,199,255,0.05); border: 1px solid rgba(51,199,255,0.2); text-align:center;">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--cyber); margin-bottom:4px;">
+          OPERATIONAL WORKSPACES
+        </div>
+        <div style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:8px;">
+          Sign in to unlock role workspaces
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="openAuthModal('login')" style="width:100%; justify-content:center; font-size:11px; padding:5px 8px;">
+          Sign In
         </button>
       </div>
-    </div>
-  `;
+    `;
+  }
 
   let roleItemsHtml = '';
-  if (role === 'admin') {
+  if (!isAuthenticated) {
+    roleItemsHtml = '';
+  } else if (role === 'admin') {
     roleItemsHtml = `
       <div class="sidebar-nav-group">
         <div class="sidebar-heading" style="color:var(--red);">Admin Command Center</div>
@@ -152,6 +160,22 @@ function renderSidebarNavigation() {
         <a class="sidebar-item ${curPage === 'admin-audit' ? 'active' : ''}" onclick="goTo('admin-audit')" title="Compliance Audit Trail">
           <span class="sidebar-icon">🛡️</span>
           <span class="sidebar-label">Audit Explorer</span>
+        </a>
+      </div>
+
+      <div class="sidebar-nav-group">
+        <div class="sidebar-heading" style="color:var(--accent-primary);">Analyst Lab Access</div>
+        <a class="sidebar-item ${curPage === 'analyst-predict' ? 'active' : ''}" onclick="goTo('analyst-predict')" title="Prediction Workbench">
+          <span class="sidebar-icon">🧪</span>
+          <span class="sidebar-label">Prediction Workbench</span>
+        </a>
+      </div>
+
+      <div class="sidebar-nav-group">
+        <div class="sidebar-heading" style="color:var(--ocean);">Resident Safety Access</div>
+        <a class="sidebar-item ${curPage === 'resident-risk' ? 'active' : ''}" onclick="goTo('resident-risk')" title="My Location Risk">
+          <span class="sidebar-icon">📍</span>
+          <span class="sidebar-label">My Location Risk</span>
         </a>
       </div>
     `;
@@ -180,9 +204,17 @@ function renderSidebarNavigation() {
           <span class="sidebar-label">Tactical Threat Intel</span>
         </a>
       </div>
+
+      <div class="sidebar-nav-group">
+        <div class="sidebar-heading" style="color:var(--ocean);">Resident Safety Access</div>
+        <a class="sidebar-item ${curPage === 'resident-risk' ? 'active' : ''}" onclick="goTo('resident-risk')" title="My Location Risk">
+          <span class="sidebar-icon">📍</span>
+          <span class="sidebar-label">My Location Risk</span>
+        </a>
+      </div>
     `;
-  } else {
-    // Resident / User Role
+  } else if (role === 'resident' || role === 'user') {
+    // Authenticated Resident / User Role
     roleItemsHtml = `
       <div class="sidebar-nav-group">
         <div class="sidebar-heading" style="color:var(--ocean);">Resident Safety Hub</div>
@@ -306,10 +338,16 @@ function renderShell() {
           </div>
 
           <div style="display:flex; align-items:center; gap:6px;">
-            <button class="mobile-role-pill" onclick="cycleRoleAutoConfigure()" title="Current Workspace Role: tap to switch" style="background:${getRoleColor(role)}22; border:1px solid ${getRoleColor(role)}55; color:${getRoleColor(role)};">
-              <span>${getRoleHomeIcon(role)}</span>
-              <span>${role.toUpperCase()}</span>
-            </button>
+            ${isAuthenticated ? `
+              <button class="mobile-role-pill" onclick="handleRoleBadgeClick()" title="Verified Clearance: ${role.toUpperCase()}" style="background:${getRoleColor(role)}22; border:1px solid ${getRoleColor(role)}55; color:${getRoleColor(role)};">
+                <span>${getRoleHomeIcon(role)}</span>
+                <span>${role.toUpperCase()}</span>
+              </button>
+            ` : `
+              <button class="btn btn-sm btn-primary" onclick="openAuthModal('login')" style="font-size:11px; padding:4px 8px;">
+                Sign In
+              </button>
+            `}
 
             <button class="icon-btn" onclick="openClimateModal()" title="Weather Atmosphere" style="width:34px; height:34px; font-size:14px; border-radius:8px;">
               🌧️
@@ -335,20 +373,25 @@ function renderShell() {
                 <span class="brand-text" style="font-weight:700; font-size:15px;">FloodAI</span>
               </div>
               <span style="color:var(--text-muted); opacity:0.6;">/</span>
-              <span style="text-transform:capitalize; color:var(--text-secondary); cursor:pointer;" onclick="cycleRoleAutoConfigure()" title="Click to switch role">${role} Workspace</span>
+              <span style="text-transform:capitalize; color:var(--text-secondary);">${isAuthenticated ? `${role} Workspace` : 'Public Portal'}</span>
               <span style="color:var(--text-muted); opacity:0.6;">/</span>
               <span class="active">${escapeHtml(policy.title || state.page)}</span>
             </div>
 
             <!-- Header Actions: Role Pill, Command Palette, Climate, Profile & Theme -->
             <div class="top-actions">
-              <!-- Quick Role Switcher Pill -->
-              <div class="role-indicator-badge" onclick="cycleRoleAutoConfigure()" title="Operational Role (Click to switch)"
-                style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:10px; background:${getRoleColor(role)}18; border:1px solid ${getRoleColor(role)}44; color:${getRoleColor(role)}; font-size:11.5px; font-weight:700; cursor:pointer;">
-                <span>${getRoleHomeIcon(role)}</span>
-                <span>${role.toUpperCase()}</span>
-                <span style="font-size:9px; opacity:0.75;">▼</span>
-              </div>
+              <!-- Quick Role Display or Sign-In Action -->
+              ${isAuthenticated ? `
+                <div class="role-indicator-badge" onclick="handleRoleBadgeClick()" title="Clearance Level: ${role.toUpperCase()} (Click to view Profile)"
+                  style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:10px; background:${getRoleColor(role)}18; border:1px solid ${getRoleColor(role)}44; color:${getRoleColor(role)}; font-size:11.5px; font-weight:700; cursor:pointer;">
+                  <span>${getRoleHomeIcon(role)}</span>
+                  <span>${role.toUpperCase()}</span>
+                </div>
+              ` : `
+                <button class="btn btn-sm btn-primary" onclick="openAuthModal('login')" style="font-size:11.5px; padding:6px 12px; gap:6px;">
+                  <span>🔐</span> Sign In
+                </button>
+              `}
 
               <!-- Command Palette Shortcut Prompt -->
               <div class="cmd-palette-top-pill" onclick="openCommandPalette()" title="Press Ctrl+K to access Command Palette"
@@ -692,7 +735,8 @@ function filterCommandPalette(query = '') {
   let html = '';
 
   if (matchedPages.length > 0) {
-    html += `<div class="cmd-palette-section-title">Accessible Screens (${state.user?.role || 'Guest'})</div>`;
+    const roleLabel = (state.user && state.token) ? (state.user.role || 'Resident').toUpperCase() : 'Public';
+    html += `<div class="cmd-palette-section-title">Accessible Screens (${roleLabel})</div>`;
     matchedPages.forEach((item, idx) => {
       const isSelected = idx === cmdPaletteActiveIndex;
       html += renderCmdPaletteItemHtml(item, idx, isSelected);
@@ -774,35 +818,47 @@ function executeCommandPaletteItem(index) {
 
 /* ================= 3. MOBILE SLIDE-OUT DRAWER MENU & SIDEBAR ================= */
 function renderMobileDrawerNavigation() {
-  const role = state.user?.role || 'resident';
+  const isAuthenticated = Boolean(state.user && state.token);
+  const role = isAuthenticated ? (state.user?.role || 'resident').toLowerCase() : null;
   const curPage = state.page || 'home';
 
-  const roleSwitcherHtml = `
-    <div class="sidebar-role-switcher" style="margin: 8px 0 14px; padding: 10px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid var(--panel-border);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-2); font-family:var(--font-mono);">
-          CONFIGURE WORKSPACE ROLE
-        </span>
-        <span class="role-indicator-badge" style="background:${getRoleColor(role)}22; color:${getRoleColor(role)}; border:1px solid ${getRoleColor(role)}55; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px;">
-          ${role.toUpperCase()}
-        </span>
+  let roleSwitcherHtml = '';
+  if (isAuthenticated) {
+    roleSwitcherHtml = `
+      <div class="sidebar-role-switcher" style="margin: 8px 0 14px; padding: 10px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid var(--panel-border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-2); font-family:var(--font-mono);">
+            CLEARANCE LEVEL
+          </span>
+          <span class="role-indicator-badge" style="background:${getRoleColor(role)}22; color:${getRoleColor(role)}; border:1px solid ${getRoleColor(role)}55; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px;">
+            ${role.toUpperCase()}
+          </span>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          👤 ${escapeHtml(state.user.displayName || state.user.email)}
+        </div>
       </div>
-      <div class="role-switch-buttons" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px;">
-        <button class="role-btn ${role === 'admin' ? 'active' : ''}" onclick="autoConfigureRoleScreens('admin')" title="Switch to Admin Operations Workspace" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${role === 'admin' ? '#EF4444' : 'var(--panel-border)'}; background:${role === 'admin' ? 'rgba(239,68,68,0.22)' : 'transparent'}; color:${role === 'admin' ? '#FF6B6B' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          ⚡ Admin
-        </button>
-        <button class="role-btn ${role === 'analyst' ? 'active' : ''}" onclick="autoConfigureRoleScreens('analyst')" title="Switch to Analyst Hydrologic Lab" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${role === 'analyst' ? 'var(--accent-primary)' : 'var(--panel-border)'}; background:${role === 'analyst' ? 'var(--accent-glow)' : 'transparent'}; color:${role === 'analyst' ? 'var(--accent-primary)' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          🧪 Analyst
-        </button>
-        <button class="role-btn ${role === 'resident' || role === 'user' ? 'active' : ''}" onclick="autoConfigureRoleScreens('resident')" title="Switch to Resident Safety Hub" style="padding:6px 2px; font-size:10.5px; font-weight:600; border-radius:7px; border:1px solid ${(role === 'resident' || role === 'user') ? 'var(--ocean)' : 'var(--panel-border)'}; background:${(role === 'resident' || role === 'user') ? 'rgba(31,224,168,0.22)' : 'transparent'}; color:${(role === 'resident' || role === 'user') ? 'var(--ocean)' : 'var(--text-1)'}; cursor:pointer; transition:all 0.2s ease;">
-          📍 Resident
+    `;
+  } else {
+    roleSwitcherHtml = `
+      <div class="sidebar-role-switcher" style="margin: 8px 0 14px; padding: 12px 10px; border-radius: 12px; background: rgba(51,199,255,0.05); border: 1px solid rgba(51,199,255,0.2); text-align:center;">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--cyber); margin-bottom:4px;">
+          OPERATIONAL WORKSPACES
+        </div>
+        <div style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:8px;">
+          Sign in to unlock role workspaces
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="closeMobileMenu(); openAuthModal('login')" style="width:100%; justify-content:center; font-size:11px; padding:5px 8px;">
+          Sign In
         </button>
       </div>
-    </div>
-  `;
+    `;
+  }
 
   let roleItemsHtml = '';
-  if (role === 'admin') {
+  if (!isAuthenticated) {
+    roleItemsHtml = '';
+  } else if (role === 'admin') {
     roleItemsHtml = `
       <div class="mobile-drawer-group">
         <div class="mobile-drawer-heading" style="color:var(--red);">Admin Command Center</div>
@@ -864,7 +920,7 @@ function renderMobileDrawerNavigation() {
         </a>
       </div>
     `;
-  } else {
+  } else if (role === 'resident' || role === 'user') {
     // Resident / User Role
     roleItemsHtml = `
       <div class="mobile-drawer-group">
@@ -1012,8 +1068,8 @@ function openMobileMenu() {
       userSlot.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <div style="font-size:13px; font-weight:600; color:var(--text-0);">Civilian / Guest Mode</div>
-            <div style="font-size:11.5px; color:var(--text-2);">Sign in for responder &amp; analyst access</div>
+            <div style="font-size:13px; font-weight:600; color:var(--text-0);">Public Visitor</div>
+            <div style="font-size:11.5px; color:var(--text-2);">Sign in to access protected role workspaces</div>
           </div>
           <button class="btn btn-sm btn-primary" onclick="closeMobileMenu(); openAuthModal('login');" style="font-size:11px; padding:5px 10px;">Sign In</button>
         </div>
@@ -1039,11 +1095,28 @@ let _pageTransitionTimer = null;
 function goTo(page) {
   const check = checkRouteAccess(page);
   
-  if (!check.allowed && check.reason === 'unauthenticated') {
-    state.redirectAfterLogin = page;
-    state.page = 'login';
+  if (!check.allowed) {
+    if (check.reason === 'unauthenticated') {
+      state.redirectAfterLogin = page;
+      if (typeof toast === 'function' && page !== 'login') {
+        toast(`Authentication required: Please sign in to access ${check.policy?.title || 'this screen'}.`);
+      }
+      state.page = 'login';
+      openAuthModal('login', page);
+    } else if (check.reason === 'unauthorized') {
+      if (typeof toast === 'function') {
+        toast(`Access restricted: ${check.message}`);
+      }
+      state.page = page;
+    } else {
+      state.page = 'login';
+    }
   } else {
     state.page = page;
+  }
+
+  if (typeof AppEvents !== 'undefined') {
+    AppEvents.emit(AppEvents.EVENTS.PAGE_CHANGED, state.page);
   }
 
   // Synchronize layout architecture (Layout A vs Layout B)
@@ -1719,7 +1792,7 @@ function renderSosConfirmBody() {
 
       <div style="padding:16px; border-radius:12px; background:rgba(240, 82, 96, 0.12); border:1px solid rgba(240, 82, 96, 0.4); line-height:1.5; font-size:13px; color:var(--text-primary);">
         <b>Target Sector:</b> ${escapeHtml(district)}<br/>
-        <b>Initiator:</b> ${user ? escapeHtml(user.displayName + ' (' + user.email + ')') : 'Guest / Civilian Session'}<br/>
+        <b>Initiator:</b> ${user ? escapeHtml(user.displayName + ' (' + user.email + ')') : 'Public Emergency Broadcast'}<br/>
         <b>Channels:</b> SMS Alert to Civil Defense, FCM Browser Web Push, and Brevo Email Dispatch.
       </div>
 
@@ -2111,4 +2184,17 @@ function renderPermissionBanner(context) {
       </div>
     </div>
   `;
+}
+
+if (typeof window !== 'undefined') {
+  window.navigateToRoleWorkspace = navigateToRoleWorkspace;
+  window.autoConfigureRoleScreens = autoConfigureRoleScreens;
+  window.goTo = goTo;
+  window.getRoleHomeScreen = getRoleHomeScreen;
+}
+if (typeof global !== 'undefined') {
+  global.navigateToRoleWorkspace = navigateToRoleWorkspace;
+  global.autoConfigureRoleScreens = autoConfigureRoleScreens;
+  global.goTo = goTo;
+  global.getRoleHomeScreen = getRoleHomeScreen;
 }

@@ -182,6 +182,9 @@ async function resolveAdminAlert(alertId) {
   try {
     await api(`/alerts/${alertId}/resolve`, 'PUT');
     toast('✅ Emergency alert resolved.');
+    if (typeof AppEvents !== 'undefined') {
+      AppEvents.emit(AppEvents.EVENTS.ALERT_RESOLVED, { alertId });
+    }
     _loadAdminAlertsList();
   } catch (err) {
     toast(`Failed to resolve: ${err.message}`);
@@ -195,9 +198,12 @@ async function submitAdminAlert(e) {
   const message = document.getElementById('newAlertMsg')?.value;
 
   try {
-    await api('/alerts', 'POST', { location, level, message });
+    const created = await api('/alerts', 'POST', { location, level, message });
     toast('🚨 Alert dispatched across all configured channels.');
     toggleAdminNewAlertForm();
+    if (typeof AppEvents !== 'undefined') {
+      AppEvents.emit(AppEvents.EVENTS.ALERT_DISPATCHED, { alert: created, isSimulation: false });
+    }
     _loadAdminAlertsList();
   } catch (err) {
     toast(`Dispatch failed: ${err.message}`);

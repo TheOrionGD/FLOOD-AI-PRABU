@@ -174,5 +174,11 @@ async function deleteSavedLocationBookmark(idx) {
 
 function quickCheckLocationRisk(district) {
   portalSelectedDistrict = district;
+  if (typeof GeoLocationService !== 'undefined' && GeoLocationService.selectManualDistrict) {
+    GeoLocationService.selectManualDistrict(district);
+  } else if (typeof AppStore !== 'undefined' && AppStore.syncLocation) {
+    AppStore.syncLocation({ district });
+  }
   goTo('resident-risk');
 }
+

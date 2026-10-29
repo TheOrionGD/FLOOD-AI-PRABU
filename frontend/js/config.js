@@ -96,14 +96,14 @@ const ROUTE_POLICIES = {
     title: 'Operator Profile',
     isPublic: false,
     layout: 'saas',
-    requiredRoles: ['user', 'analyst', 'admin'],
+    requiredRoles: ['resident', 'user', 'analyst', 'admin'],
     description: 'Account identity, multi-language localization, theme and 7-accent styling.'
   },
   settings: {
     title: 'System Preferences',
     isPublic: false,
     layout: 'saas',
-    requiredRoles: ['user', 'analyst', 'admin'],
+    requiredRoles: ['resident', 'user', 'analyst', 'admin'],
     description: 'Comprehensive 8-category preferences engine with persistent cloud synchronization.'
   },
 
@@ -373,7 +373,7 @@ function getAccessiblePages() {
     const policy = ROUTE_POLICIES[id];
     if (!policy) return true;
     if (policy.isPublic) return true;
-    if (!state.user && !state.token) return false;
+    if (!state.user || !state.token) return false;
 
     const rawRole = (state.user?.role || 'resident').toLowerCase();
     const effectiveRoles = [rawRole];
@@ -390,6 +390,15 @@ function getAccessiblePages() {
     }
     return true;
   });
+}
+
+if (typeof window !== 'undefined') {
+  window.ROUTE_POLICIES = ROUTE_POLICIES;
+  window.getAccessiblePages = getAccessiblePages;
+}
+if (typeof global !== 'undefined') {
+  global.ROUTE_POLICIES = ROUTE_POLICIES;
+  global.getAccessiblePages = getAccessiblePages;
 }
 
 

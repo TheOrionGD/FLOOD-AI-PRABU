@@ -702,7 +702,7 @@ function checkRouteAccess(pageId) {
     : { isPublic: true, title: pageId };
   if (policy.isPublic) return { allowed: true, policy };
 
-  if (!state.user && !state.token) {
+  if (!state.user || !state.token) {
     return {
       allowed: false,
       reason: 'unauthenticated',
@@ -730,7 +730,7 @@ function checkRouteAccess(pageId) {
     } catch (e) {}
   }
 
-  const rawRole = (state.user?.role || 'resident').toLowerCase();
+  const rawRole = (state.user?.role || '').toLowerCase();
   // Role hierarchy mapping
   const effectiveRoles = [rawRole];
   if (rawRole === 'resident' || rawRole === 'user') {
@@ -774,7 +774,7 @@ function renderAccessRestricted(root, check) {
           ${escapeHtml(check.policy.description || 'Security access policy enforced.')}
         </p>
         <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-          ${!state.user ? `
+          ${(!state.user || !state.token) ? `
             <button class="glass-btn glass-btn-primary" onclick="openAuthModal('login', '${state.page}')">
               Sign In to Continue &rarr;
             </button>
@@ -796,7 +796,7 @@ function renderAuthHeaderWidget() {
   const el = document.getElementById('authHeaderWidget');
   if (!el) return;
 
-  if (state.user) {
+  if (state.user && state.token) {
     el.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px;">
         <button class="btn btn-sm btn-ghost" onclick="openPrefModal()" style="font-size:12px; gap:6px;">
@@ -812,4 +812,19 @@ function renderAuthHeaderWidget() {
       <button class="btn btn-sm btn-primary" onclick="openAuthModal('login')">Sign In</button>
     `;
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.checkRouteAccess = checkRouteAccess;
+  window.renderAccessRestricted = renderAccessRestricted;
+  window.openAuthModal = openAuthModal;
+  window.closeAuthModal = closeAuthModal;
+  window.switchAuthTab = switchAuthTab;
+}
+if (typeof global !== 'undefined') {
+  global.checkRouteAccess = checkRouteAccess;
+  global.renderAccessRestricted = renderAccessRestricted;
+  global.openAuthModal = openAuthModal;
+  global.closeAuthModal = closeAuthModal;
+  global.switchAuthTab = switchAuthTab;
 }

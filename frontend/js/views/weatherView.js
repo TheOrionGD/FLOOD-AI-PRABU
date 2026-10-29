@@ -66,6 +66,8 @@ async function loadWeather(districtTarget, isRefresh = false) {
   const body = document.getElementById('weatherBody');
   if (!body) return;
 
+  const thisReqId = ++_weatherReqSeq;
+
   if (isRefresh) {
     body.classList.add('refreshing-card');
   } else {
@@ -78,14 +80,16 @@ async function loadWeather(districtTarget, isRefresh = false) {
     // Fetch Open-Meteo and OpenWeather concurrently
     const [meteoRes, owData] = await Promise.allSettled([
       fetch(url).then(r => r.ok ? r.json() : null),
-      (typeof WeatherService !== 'undefined' ? WeatherService.fetchCurrentWeather(d.latitude, d.longitude, isRefresh) : Promise.resolve(null))
+      (typeof WeatherService !== 'undefined' ? WeatherService.fetchCurrentWeather(lat, lon, isRefresh) : Promise.resolve(null))
     ]);
+
+    if (thisReqId !== _weatherReqSeq) return; // Stale async response discarded
 
     const j = meteoRes.status === 'fulfilled' && meteoRes.value ? meteoRes.value : null;
     const c = j?.current || {};
     const ow = owData.status === 'fulfilled' && owData.value?.data ? owData.value.data : null;
     const norm = ow && typeof ClimateStateResolver !== 'undefined'
-      ? ClimateStateResolver.normalizeWeatherResponse(ow, { district: districtName, lat: d.latitude, lon: d.longitude })
+      ? ClimateStateResolver.normalizeWeatherResponse(ow, { district: districtName, lat: lat, lon: lon })
       : null;
 
     body.classList.remove('refreshing-card');
@@ -107,7 +111,7 @@ async function loadWeather(districtTarget, isRefresh = false) {
       </div>
       <div class="glass weather-hero">
         <div>
-          <div style="font-size:14px; color:var(--text-1); margin-bottom:6px;">${districtName}, ${d.state}</div>
+          <div style="font-size:14px; color:var(--text-1); margin-bottom:6px;">${districtName}, ${stateName}</div>
           <div class="weather-big">${tempDisplay}</div>
           <div style="color:var(--cyber); font-size:13.5px; font-weight:600; margin-top:4px; text-transform:capitalize;">
             ${weatherDesc}
@@ -135,6 +139,7 @@ async function loadWeather(districtTarget, isRefresh = false) {
       </div>
     `;
   } catch (err) {
+    if (thisReqId !== _weatherReqSeq) return;
     body.classList.remove('refreshing-card');
     body.innerHTML = renderErrorState({
       title: `Weather Telemetry Offline for ${districtName}`,
@@ -151,4 +156,28 @@ function weatherStat(lbl, val) {
       <div style="font-family:var(--font-display); font-size:19px; font-weight:700; margin-top:6px;">${val}</div>
     </div>
   `;
+}
+
+let _weatherReqSeq = 0;
+
+// Reactive listener for location changes across the application
+if (typeof AppEvents !== 'undefined') {
+  AppEvents.on(AppEvents.EVENTS.LOCATION_CHANGED, (loc) => {
+    const sel = document.getElementById('wDistrict');
+    if (!sel) return;
+
+    // Update or insert the detected option
+    let userOpt = Array.from(sel.options).find(o => o.value === '__my_location__');
+    const placeLabel = loc.cityName || loc.district || (loc.lat ? `${Number(loc.lat).toFixed(2)}°, ${Number(loc.lon).toFixed(2)}°` : 'Detected Location');
+    if (!userOpt) {
+      userOpt = document.createElement('option');
+      userOpt.value = '__my_location__';
+      sel.insertBefore(userOpt, sel.firstChild);
+    }
+    userOpt.textContent = `📍 ${placeLabel} (Detected Location)`;
+
+    if (sel.value === '__my_location__' || sel.value === loc.district) {
+      loadWeather(sel.value, false);
+    }
+  });
 }
