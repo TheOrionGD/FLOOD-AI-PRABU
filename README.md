@@ -15,46 +15,52 @@
 
 ```mermaid
 graph TD
-    User([Browser Client / Citizen / Analyst / Admin])
+    User["Browser Client (Citizen / Analyst / Admin)"]
     
-    subgraph Frontend ["Frontend SPA (Port 3000)"]
-        UI[Liquid Glass UI & Command Palette Ctrl+K]
-        Atmosphere[Atmosphere Controller & Dual-Buffer Engine]
-        Audio[Web Audio Acoustic Siren Synthesizer]
-        GIS[Leaflet GIS & GeoJSON Catchment Maps]
+    subgraph Frontend["Frontend SPA (Port 3000)"]
+        UI["Liquid Glass UI & Command Palette Ctrl+K"]
+        Atmosphere["Atmosphere Controller & Dual-Buffer Engine"]
+        Audio["Web Audio Acoustic Siren Synthesizer"]
+        GIS["Leaflet GIS & GeoJSON Catchment Maps"]
     end
 
-    subgraph Backend ["Node.js Express API Gateway (Port 5000)"]
-        EnvConfig[Strict Environment Config Loader]
-        AuthRBAC[JWT Authentication & Multi-Role RBAC]
-        DisasterAPI[10,000 Ground-Truth Catalog Engine]
-        Dispatch[Multi-Channel Dispatcher: Web Push / SMS / Email]
+    subgraph Backend["Node.js Express API Gateway (Port 5000)"]
+        Gateway["Express Router & API Gateway"]
+        AuthRBAC["JWT Authentication & Multi-Role RBAC"]
+        DisasterAPI["Ground-Truth Disaster Catalog Engine"]
+        Dispatch["Multi-Channel Dispatcher (Web Push / SMS / Email)"]
     end
 
-    subgraph ML ["Python Flask Microservice (Port 8000)"]
-        MLConfig[Centralized ML Config]
-        XGB[XGBoost Classifier - 94.2% ROC-AUC]
-        RF[Random Forest Classifier - 92.8% ROC-AUC]
-        SHAP[SHAP TreeExplainer Attribution]
-        Groq[Groq AI Threat Synthesis]
+    subgraph ML["Python Flask Microservice (Port 8000)"]
+        MLConfig["Inference API Endpoint"]
+        XGB["XGBoost Classifier (94.2% ROC-AUC)"]
+        RF["Random Forest Classifier (92.8% ROC-AUC)"]
+        SHAP["SHAP TreeExplainer Attribution"]
+        Groq["Groq AI Threat Synthesis"]
     end
 
-    subgraph Persistence ["Persistence & External Services"]
+    subgraph Persistence["Persistence & External Services"]
         Atlas[("MongoDB Atlas 10k Records Archive")]
         OpenWeather["OpenWeather API Telemetry"]
         FCM["Firebase Cloud Messaging Web Push"]
     end
 
     User --> UI
-    UI --> Backend
+    UI --> Gateway
     UI --> Atmosphere
     UI --> Audio
     UI --> GIS
-    Backend --> ML
-    Backend --> Atlas
-    Backend --> FCM
+    Gateway --> AuthRBAC
+    Gateway --> DisasterAPI
+    Gateway --> Dispatch
+    Gateway --> MLConfig
+    DisasterAPI --> Atlas
+    Dispatch --> FCM
     Atmosphere --> OpenWeather
-    ML --> Groq
+    MLConfig --> XGB
+    MLConfig --> RF
+    MLConfig --> SHAP
+    MLConfig --> Groq
 ```
 
 ---

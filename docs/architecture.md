@@ -5,46 +5,54 @@ FloodAI is a planetary-scale disaster threat intelligence platform that combines
 
 ```mermaid
 graph TD
-    User([Browser Client / Citizen / Operator])
+    User["Browser Client (Citizen / Operator / Analyst)"]
     
-    subgraph Frontend ["Frontend SPA (Port 3000)"]
-        UI[Liquid Glass UI & Command Palette]
-        Atmosphere[Atmosphere Controller & Dual-Buffer Backgrounds]
-        Audio[Web Audio Acoustic Siren Synthesizer]
-        Leaflet[Leaflet Geospatial GIS Engine]
+    subgraph Frontend["Frontend SPA (Port 3000)"]
+        UI["Liquid Glass UI & Command Palette"]
+        Atmosphere["Atmosphere Controller & Dual-Buffer Backgrounds"]
+        Audio["Web Audio Acoustic Siren Synthesizer"]
+        Leaflet["Leaflet Geospatial GIS Engine"]
     end
 
-    subgraph Backend ["Node.js Express Backend (Port 5000)"]
-        EnvConfig[Strict Environment Config Loader]
-        AuthModule[JWT Auth & RBAC Guard]
-        DisasterAPI[Disaster Catalog & Records Engine]
-        AlertDispatcher[Emergency Alert Multi-Channel Dispatcher]
+    subgraph Backend["Node.js Express Backend (Port 5000)"]
+        Gateway["Express API Gateway"]
+        EnvConfig["Strict Environment Config Loader"]
+        AuthModule["JWT Auth & RBAC Security Guard"]
+        DisasterAPI["Disaster Catalog & Records Engine"]
+        AlertDispatcher["Emergency Alert Multi-Channel Dispatcher"]
     end
 
-    subgraph ML ["Python Flask Microservice (Port 8000)"]
-        MLConfig[Centralized ML Config]
-        XGB[XGBoost Classifier]
-        RF[Random Forest Classifier]
-        SHAP[SHAP TreeExplainer]
-        Groq[Groq AI Threat Synthesis]
+    subgraph ML["Python Flask Microservice (Port 8000)"]
+        MLConfig["Centralized ML Inference Engine"]
+        XGB["XGBoost Classifier"]
+        RF["Random Forest Classifier"]
+        SHAP["SHAP TreeExplainer"]
+        Groq["Groq AI Threat Synthesis"]
     end
 
-    subgraph Storage ["Persistent & External Telemetry"]
-        Mongo[(MongoDB Atlas 10k Records)]
-        OpenWeather[OpenWeather Atmospheric API]
-        FCM[Firebase Cloud Messaging]
+    subgraph Storage["Persistent & External Telemetry"]
+        Mongo[("MongoDB Atlas 10k Records Archive")]
+        OpenWeather["OpenWeather Atmospheric API"]
+        FCM["Firebase Cloud Messaging"]
     end
 
     User --> UI
-    UI --> Backend
+    UI --> Gateway
     UI --> Atmosphere
     UI --> Audio
     UI --> Leaflet
-    Backend --> ML
-    Backend --> Mongo
-    Backend --> FCM
+    Gateway --> EnvConfig
+    Gateway --> AuthModule
+    Gateway --> DisasterAPI
+    Gateway --> AlertDispatcher
+    Gateway --> MLConfig
+    DisasterAPI --> Mongo
+    AlertDispatcher --> FCM
     Atmosphere --> OpenWeather
-    ML --> Groq
+    MLConfig --> XGB
+    MLConfig --> RF
+    MLConfig --> SHAP
+    MLConfig --> Groq
 ```
 
 ## 2. Core Architectural Pillars

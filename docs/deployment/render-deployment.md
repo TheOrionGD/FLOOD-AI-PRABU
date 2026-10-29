@@ -6,9 +6,9 @@ FloodAI deploys on **Render** as a 3-tier distributed microservice architecture:
 
 ```mermaid
 graph TD
-    Client["Client Browser (PWA / Web)<br>Static Site: floodai-frontend"] -->|HTTPS / REST / SSE| NodeBackend["Node.js Express API Gateway<br>Web Service: floodai-backend (Port 5000)"]
-    NodeBackend -->|Mongoose TLS| Atlas["MongoDB Atlas Cluster<br>(Replica Set: auth, alerts, notifications)"]
-    NodeBackend -->|Private HTTP + Service Key| MLService["Python ML Microservice<br>Web Service: floodai-ai (Port 8000)"]
+    Client["Client Browser (PWA / Web)<br/>Static Site: floodai-frontend"] -->|HTTPS / REST / SSE| NodeBackend["Node.js Express API Gateway<br/>Web Service: floodai-backend (Port 5000)"]
+    NodeBackend -->|Mongoose TLS| Atlas[("MongoDB Atlas Cluster<br/>Replica Set: auth, alerts, notifications")]
+    NodeBackend -->|Private HTTP + Service Key| MLService["Python ML Microservice<br/>Web Service: floodai-ai (Port 8000)"]
     NodeBackend -->|HTTPS API| Brevo["Brevo SMTP / Transactional Email"]
     NodeBackend -->|HTTPS API| Twilio["Twilio / Brevo SMS Gateway"]
     NodeBackend -->|HTTPS / HTTP v1| FCM["Firebase Cloud Messaging (FCM)"]
