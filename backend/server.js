@@ -135,6 +135,15 @@ app.get("/", (req, res) => {
   });
 });
 
+// Favicon Handler (Prevent 404 logs from browser requests)
+app.get("/favicon.ico", (req, res) => {
+  const iconPath = path.join(__dirname, "..", "frontend", "favicon.ico");
+  if (fs.existsSync(iconPath)) {
+    return res.sendFile(iconPath);
+  }
+  res.status(204).end();
+});
+
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({ error: "Endpoint not found", path: req.originalUrl });

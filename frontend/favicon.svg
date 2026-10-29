@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#33C7FF" />
+      <stop offset="50%" stop-color="#0077FF" />
+      <stop offset="100%" stop-color="#1FE0A8" />
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#33C7FF" stop-opacity="0.8" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Base Badge -->
+  <rect width="64" height="64" rx="16" fill="#0A1120" />
+  <rect width="62" height="62" x="1" y="1" rx="15" stroke="rgba(51, 199, 255, 0.4)" stroke-width="1.5" />
+
+  <!-- Shield Emblem -->
+  <path d="M32 10 L48 16 V28 C48 39 41 48 32 53 C23 48 16 39 16 28 V16 Z" 
+        fill="url(#shieldGrad)" 
+        filter="url(#glow)" />
+
+  <!-- Wave Vector Inside Shield -->
+  <path d="M22 30 C25 27 28 27 32 30 C36 33 39 33 42 30 C42 34 39 39 32 43 C25 39 22 34 22 30 Z" 
+        fill="url(#waveGrad)" />
+  
+  <!-- Core Radar / AI Sentinel Dot -->
+  <circle cx="32" cy="23" r="3.5" fill="#FFFFFF" />
+  <circle cx="32" cy="23" r="6" stroke="#FFFFFF" stroke-width="1.2" stroke-dasharray="2 2" opacity="0.85" />
+</svg>
