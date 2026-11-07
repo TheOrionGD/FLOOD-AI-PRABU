@@ -30,10 +30,13 @@ async function checkApiHealth() {
     const h = await api('/health', 'GET', null, false);
     state.apiHealthy = true;
     console.log('[FloodAI] Connected to backend API:', h.service);
+    if (typeof connectNotificationStream === 'function' && typeof notificationEventSource !== 'undefined' && !notificationEventSource) {
+      connectNotificationStream();
+    }
     return true;
   } catch (e) {
     state.apiHealthy = false;
-    console.warn('[FloodAI] Backend API not reachable:', e.message);
+    console.warn('[FloodAI] Backend API not reachable (running in resilient offline mode):', e.message);
     return false;
   }
 }

@@ -119,15 +119,32 @@ function handleIncomingNotificationPayload(payload) {
 /**
  * Connects to the real-time Server-Sent Events notification stream from backend
  */
+let _sseRetryCount = 0;
+let _sseReconnectTimeout = null;
+
 function connectNotificationStream() {
   if (typeof EventSource === 'undefined') return;
   if (notificationEventSource) {
     try { notificationEventSource.close(); } catch (_) {}
+    notificationEventSource = null;
+  }
+  if (_sseReconnectTimeout) {
+    clearTimeout(_sseReconnectTimeout);
+    _sseReconnectTimeout = null;
+  }
+
+  // If backend is known to be offline, avoid repeated connection attempts
+  if (typeof state !== 'undefined' && state.apiHealthy === false && _sseRetryCount >= 2) {
+    return;
   }
 
   const streamUrl = (typeof API_BASE !== 'undefined' ? API_BASE : '/api') + '/notifications/stream';
   try {
     notificationEventSource = new EventSource(streamUrl);
+
+    notificationEventSource.onopen = () => {
+      _sseRetryCount = 0;
+    };
 
     notificationEventSource.onmessage = (event) => {
       try {
@@ -141,7 +158,18 @@ function connectNotificationStream() {
     };
 
     notificationEventSource.onerror = () => {
-      // Automatic reconnection handled natively by EventSource
+      _sseRetryCount++;
+      // Close immediate reconnect loop to prevent browser console spam on net::ERR_CONNECTION_REFUSED
+      if (notificationEventSource) {
+        try { notificationEventSource.close(); } catch (_) {}
+        notificationEventSource = null;
+      }
+      // Retry with backoff if state indicates API might be alive or during initial bootstrap
+      if (_sseRetryCount < 3) {
+        _sseReconnectTimeout = setTimeout(() => {
+          connectNotificationStream();
+        }, 10000);
+      }
     };
   } catch (err) {
     console.warn('[FCM:Stream] Real-time stream initialization notice:', err.message);
